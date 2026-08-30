@@ -1,25 +1,7 @@
 """
-patchwork.tools.linter
-========================
-Deterministic static-analysis wrapper around `ruff check` for the
-Patchwork self-healing code-audit engine.
-
-Like `sandbox.py`, this module knows nothing about the SLM, LangGraph, or
-Ollama -- it takes source code as a string, runs `ruff` against it in
-isolation, and returns strictly-typed, truncated diagnostics that are
-safe to inject into a constrained-context prompt.
-
-Design goals (see `critical_engineering_and_execution_advice` and
-`PATCHWORK_ARCHITECTURE__EDGE_CASE___FAILURE_MODE_CHECKLIST`):
-    * Ruff's own JSON output is the source of truth -- this module parses
-      it defensively rather than assuming any log format is stable across
-      ruff versions.
-    * A `ruff` binary that is missing, a malformed JSON response, or a
-      subprocess that stalls are all infrastructure failures distinct
-      from "the code has lint issues" -- they are surfaced separately via
-      `LintRunResult.error_message` / `success` rather than raised.
-    * Output is truncated before re-entering the LLM context window, for
-      the same VRAM/KV-cache reasons as the sandbox tool.
+Deterministic static-analysis wrapper around `ruff check` for the Patchwork self-healing code-audit engine.
+it takes source code as a string, runs `ruff` against it in isolation, and returns strictly-typed, truncated diagnostics
+that are safe to inject into a constrained-context prompt.
 """
 
 from __future__ import annotations
@@ -37,94 +19,61 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("patchwork.tools.linter")
 
-# --- Tunables ---------------------------------------------------------
+
+# --- Constants
 
 DEFAULT_TIMEOUT_SEC: Final[int] = 10
 MAX_ISSUES_RETAINED: Final[int] = 30
 MAX_MESSAGE_CHARS: Final[int] = 300
 
 
-class LintIssue(BaseModel):
-    """A single diagnostic reported by Ruff for one source file.
+class LintIssue(BaseModel):  # Diagonostic about single lint violation found by ruff.
 
-    Attributes:
-        code: Ruff's rule code, e.g. `"F401"`, `"B006"`. `None` for the
-            rare diagnostic ruff emits without a rule code attached.
-        name: Ruff's human-readable rule name, e.g. `"unused-import"`.
-        message: Short description of the specific violation.
-        line: 1-indexed line number where the issue starts.
-        column: 1-indexed column number where the issue starts.
-        severity: Ruff's own severity classification for the rule.
-        is_fixable: True if ruff reports an automatic fix is available
-            for this issue (safe or unsafe).
-    """
-
-    code: str | None = None
-    name: str | None = None
-    message: str
-    line: int
-    column: int
-    severity: str = "error"
-    is_fixable: bool = False
+    code: str | None = (
+        None  # Ruff rule code, e.g. "F401" or "B006". None if not provided.
+    )
+    name: str | None = (
+        None  # Ruff rule name, e.g. "unused-import". None if not provided.
+    )
+    message: str  # Short description of the specific violation.
+    line: int  # 1-indexed line number where the issue starts.
+    column: int  # 1-indexed column number where the issue starts.
+    severity: str = "error"  # Ruff's own severity classification for the rule.
+    is_fixable: bool = (
+        False  # True if ruff reports an automatic fix is available for this issue (safe or unsafe).
+    )
 
 
 class LintRunResult(BaseModel):
-    """Strictly-typed result of a single `ruff check` invocation.
 
-    Attributes:
-        success: True if ruff *executed* without an infrastructure
-            failure. Note this is independent of whether issues were
-            found -- a file with 20 lint issues is still `success=True`.
-        issues: Parsed, truncated list of individual diagnostics.
-        issue_count_total: The true number of issues ruff reported,
-            before truncation. Compare against `len(issues)` to know if
-            truncation occurred.
-        timed_out: True if the ruff subprocess exceeded `timeout_sec`.
-        duration_sec: Wall-clock time the subprocess actually ran for.
-        error_message: Populated only for infrastructure-level failures
-            (ruff missing, unparseable JSON, timeout) -- never for normal
-            lint findings, which live in `issues` instead.
-    """
-
-    success: bool
-    issues: list[LintIssue] = Field(default_factory=list)
-    issue_count_total: int = 0
-    timed_out: bool = False
-    duration_sec: float = Field(ge=0.0)
-    error_message: str | None = None
+    success: (
+        bool  # did ruff run without any failures (even if it found issues)? True/False
+    )
+    issues: list[LintIssue] = Field(
+        default_factory=list
+    )  # parsed, truncated list of individual diagnostics
+    issue_count_total: int = 0  # total reported issues
+    timed_out: bool = False  # True if the ruff subprocess exceeded `timeout_sec`
+    duration_sec: float = Field(
+        ge=0.0
+    )  # wall-clock time the subprocess actually ran for
+    error_message: str | None = (
+        None  # failures reported for ruff (not the linting issues themselves)
+    )
 
 
 def _truncate_message(message: str, max_chars: int = MAX_MESSAGE_CHARS) -> str:
-    """Truncates a single diagnostic message to a maximum character count.
 
-    Args:
-        message: Raw message text from ruff.
-        max_chars: Maximum characters to retain.
-
-    Returns:
-        The message, unchanged if short enough, otherwise cut to
-        `max_chars` with a truncation marker appended.
-    """
     if len(message) <= max_chars:
         return message
     return f"{message[:max_chars]}...[truncated]"
 
 
-def _parse_ruff_json(raw_stdout: str) -> list[LintIssue]:
-    """Parses ruff's `--output-format=json` stdout into `LintIssue`s.
-
-    Args:
-        raw_stdout: Raw stdout captured from the `ruff check` subprocess.
-
-    Returns:
-        A list of parsed issues. Entries that don't match the expected
-        shape are skipped individually rather than failing the whole
-        parse, since a single malformed entry should not hide every
-        other real diagnostic from the reflection loop.
-
-    Raises:
-        json.JSONDecodeError: If `raw_stdout` is not valid JSON at all.
-    """
+def _parse_ruff_json(
+    raw_stdout: str,
+) -> list[
+    LintIssue
+]:  # takes the JSON output from `ruff check --output-format=json` and returns a list of LintIssue objects, truncating messages as needed.
     raw_entries = json.loads(raw_stdout)
     issues: list[LintIssue] = []
     for entry in raw_entries:
@@ -154,23 +103,9 @@ def _parse_ruff_json(raw_stdout: str) -> list[LintIssue]:
 def run_ruff_linter(
     source_code: str,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
-) -> LintRunResult:
-    """Runs `ruff check` against a string of Python source code.
-
-    Args:
-        source_code: The full contents of the module to lint.
-        timeout_sec: Hard wall-clock limit, in seconds, for the ruff
-            subprocess. Must be strictly positive.
-
-    Returns:
-        A `LintRunResult`. Ruff exiting non-zero because it *found*
-        issues is a normal, expected outcome and is represented via a
-        populated `issues` list with `success=True` -- it is not treated
-        as an error. Only infrastructure failures set `success=False`.
-
-    Raises:
-        ValueError: If `timeout_sec` is not a positive number.
-    """
+) -> (
+    LintRunResult
+):  # runs `ruff check` on the provided source code string, returning a structured result with diagnostics and metadata.
     if timeout_sec <= 0:
         raise ValueError(f"timeout_sec must be positive, got {timeout_sec!r}")
 
@@ -195,7 +130,14 @@ def run_ruff_linter(
 
         try:
             proc = subprocess.run(
-                [sys.executable, "-m", "ruff", "check", "--output-format=json", str(target_path)],
+                [
+                    sys.executable,
+                    "-m",
+                    "ruff",
+                    "check",
+                    "--output-format=json",
+                    str(target_path),
+                ],
                 capture_output=True,
                 text=True,
                 timeout=timeout_sec,
