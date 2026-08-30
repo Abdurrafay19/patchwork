@@ -1,13 +1,5 @@
 """
-tests/test_linter.py
-======================
 Unit and integration tests for `patchwork.tools.linter`.
-
-Same two-tier structure as `test_sandbox.py`:
-    * `TestRunRuffLinterMocked` -- mocks `subprocess.run`, no real ruff
-      process spawned. Covers error-handling branches.
-    * `TestRunRuffLinterIntegration` -- runs real `ruff check` subprocess
-      calls against known-good and known-bad source strings.
 """
 
 from __future__ import annotations
@@ -33,7 +25,11 @@ _SAMPLE_RUFF_JSON = json.dumps(
             "code": "F401",
             "end_location": {"column": 10, "row": 1},
             "filename": "/tmp/x.py",
-            "fix": {"applicability": "safe", "edits": [], "message": "Remove unused import"},
+            "fix": {
+                "applicability": "safe",
+                "edits": [],
+                "message": "Remove unused import",
+            },
             "location": {"column": 8, "row": 1},
             "message": "`os` imported but unused",
             "name": "unused-import",
@@ -130,7 +126,9 @@ class TestRunRuffLinterMocked:
         assert "ruff" in result.error_message.lower()
 
     @patch("patchwork.tools.linter.subprocess.run")
-    def test_malformed_json_output_reports_error_message(self, mock_run: MagicMock) -> None:
+    def test_malformed_json_output_reports_error_message(
+        self, mock_run: MagicMock
+    ) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=["ruff"], returncode=1, stdout="not valid json{{{", stderr=""
         )
