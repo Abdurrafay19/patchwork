@@ -1,16 +1,5 @@
 """
-tests/test_sandbox.py
-======================
 Unit and integration tests for `patchwork.tools.sandbox`.
-
-Two tiers:
-    * `TestRunPytestSandboxMocked` -- fast, mocks `subprocess.run` so no
-      real pytest process is ever spawned. Good for CI and for validating
-      error-handling branches (timeouts, missing executable) that would
-      be slow or flaky to trigger for real.
-    * `TestRunPytestSandboxIntegration` -- slower, spawns real pytest
-      subprocesses. Catches issues mocking would hide, like sys.path
-      wiring and the import-sanitization heuristic.
 """
 
 from __future__ import annotations
@@ -75,7 +64,9 @@ class TestRunPytestSandboxValidation:
 
     def test_negative_timeout_raises(self) -> None:
         with pytest.raises(ValueError):
-            run_pytest_sandbox("x = 1", "def test_x():\n    assert True", timeout_sec=-5)
+            run_pytest_sandbox(
+                "x = 1", "def test_x():\n    assert True", timeout_sec=-5
+            )
 
 
 class TestRunPytestSandboxMocked:
@@ -173,7 +164,9 @@ class TestRunPytestSandboxIntegration:
         assert result.passed is True
 
     def test_result_is_pydantic_model_and_json_serializable(self) -> None:
-        result = run_pytest_sandbox("x = 1", "def test_x():\n    assert True", timeout_sec=15)
+        result = run_pytest_sandbox(
+            "x = 1", "def test_x():\n    assert True", timeout_sec=15
+        )
         payload = result.model_dump_json()
         assert isinstance(payload, str)
         assert '"passed":true' in payload.replace(" ", "")
