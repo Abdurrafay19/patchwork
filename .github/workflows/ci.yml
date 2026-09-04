@@ -1,0 +1,59 @@
+name: CI
+
+# Runs on every push and PR. Scope is intentionally limited to code that
+# doesn't require Ollama or a GPU: ast_inspector, linter, sandbox, and
+# (once it exists) any LangGraph nodes tested with a mocked SLM.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff mypy pytest pytest-cov
+
+      - name: Ruff lint
+        run: ruff check patchwork/ tests/
+
+      - name: Ruff format check
+        run: ruff format --check patchwork/ tests/
+
+      - name: Mypy strict
+        run: mypy --strict patchwork/
+
+      - name: Pytest with coverage
+        run: pytest tests/ -v --cov=patchwork --cov-report=term-missing
+
+  # Placeholder for Day 3+: mocked LangGraph node/reflection-loop tests.
+  # Deliberately does NOT touch Ollama or a real model — only patches
+  # ChatOllama.invoke / structured_llm.invoke. Uncomment once graph.py
+  # and its mocked test suite exist.
+  #
+  # graph-tests:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.11"
+  #     - run: pip install -r requirements.txt && pip install pytest
+  #     - run: pytest tests/test_graph.py -v -m "not requires_ollama"
