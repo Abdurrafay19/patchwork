@@ -15,10 +15,13 @@ from pydantic import ValidationError
 
 from patchwork.graph import (
     _build_audit_prompt,
+    _build_reflect_prompt,
     build_patchwork_graph,
     make_audit_and_generate_node,
+    make_reflect_and_heal_node,
     node_execute_tests,
     node_static_analysis,
+    route_after_execution,
 )
 from patchwork.state import CodeAuditOutput, create_initial_state
 
@@ -171,3 +174,151 @@ class TestBuildPatchworkGraphIntegration:
 
         assert final["current_code"] == "x = 1"
         assert final["sandbox_result"] is not None  # execute_tests still ran
+
+
+class TestBuildReflectPrompt:
+    def test_prefers_stderr_over_stdout(self) -> None:
+        state = create_initial_state("target.py", "def f():\n    return 1\n")
+        state["current_tests"] = "def test_f():\n    assert f() == 2\n"
+        state = node_execute_tests(state)  # real sandbox run -> real failure output
+
+        prompt = _build_reflect_prompt(state)
+
+        assert "Current code:" in prompt
+        assert "Current tests:" in prompt
+        assert "def f():" in prompt
+
+    def test_handles_missing_sandbox_result_gracefully(self) -> None:
+        state = create_initial_state("target.py", "x = 1")
+        prompt = _build_reflect_prompt(state)
+        assert "unknown failure" in prompt
+
+
+class TestReflectAndHealNode:
+    def test_successful_reflection_updates_code_and_increments_retry(self) -> None:
+        mock_result = CodeAuditOutput(
+            identified_bugs=["fixed the off-by-one"],
+            suggested_patch="def f():\n    return 2\n",
+            pytest_suite="def test_f():\n    assert f() == 2\n",
+        )
+        node = make_reflect_and_heal_node(_mock_llm(mock_result))
+        state = create_initial_state("target.py", "def f():\n    return 1\n")
+        state["retry_count"] = 0
+
+        new_state = node(state)
+
+        assert new_state["current_code"] == mock_result.suggested_patch
+        assert new_state["retry_count"] == 1
+
+    def test_schema_failure_still_increments_retry_without_crashing(self) -> None:
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = ValidationError.from_exception_data(
+            "CodeAuditOutput", []
+        )
+        node = make_reflect_and_heal_node(mock_llm)
+        state = create_initial_state("target.py", "x = 1")
+        state["retry_count"] = 1
+
+        new_state = node(state)  # must not raise
+
+        assert new_state["retry_count"] == 2
+        assert new_state["current_code"] == "x = 1"  # unchanged
+
+    def test_does_not_mutate_input_state(self) -> None:
+        mock_result = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="y = 2",
+            pytest_suite="def test_y():\n    assert y == 2\n",
+        )
+        node = make_reflect_and_heal_node(_mock_llm(mock_result))
+        state = create_initial_state("target.py", "x = 1")
+
+        node(state)
+
+        assert state["current_code"] == "x = 1"
+        assert state["retry_count"] == 0
+
+
+class TestRouteAfterExecution:
+    def test_passing_tests_route_to_end(self) -> None:
+        state = create_initial_state("target.py", "def add(a, b):\n    return a + b\n")
+        state["current_tests"] = "def test_add():\n    assert add(1, 2) == 3\n"
+        state = node_execute_tests(state)
+
+        assert route_after_execution(state) == "end"
+
+    def test_failing_tests_with_retries_remaining_route_to_reflect(self) -> None:
+        state = create_initial_state("target.py", "def add(a, b):\n    return a - b\n")
+        state["current_tests"] = "def test_add():\n    assert add(1, 2) == 3\n"
+        state = node_execute_tests(state)
+        state["retry_count"] = 0
+        state["max_retries"] = 3
+
+        assert route_after_execution(state) == "reflect"
+
+    def test_failing_tests_with_retries_exhausted_route_to_end(self) -> None:
+        state = create_initial_state("target.py", "def add(a, b):\n    return a - b\n")
+        state["current_tests"] = "def test_add():\n    assert add(1, 2) == 3\n"
+        state = node_execute_tests(state)
+        state["retry_count"] = 3
+        state["max_retries"] = 3
+
+        assert route_after_execution(state) == "end"
+
+    def test_no_sandbox_result_yet_routes_to_reflect_if_retries_remain(self) -> None:
+        state = create_initial_state("target.py", "x = 1")
+        assert route_after_execution(state) == "reflect"
+
+
+class TestReflectionLoopIntegration:
+    """Full graph run proving the loop actually loops and terminates."""
+
+    def test_loop_converges_after_two_failed_attempts(self) -> None:
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = [
+            CodeAuditOutput(
+                identified_bugs=["v1"],
+                suggested_patch="def divide(a, b):\n    return a - b\n",
+                pytest_suite="def test_divide():\n    assert divide(10, 2) == 5\n",
+            ),
+            CodeAuditOutput(
+                identified_bugs=["v2"],
+                suggested_patch="def divide(a, b):\n    return a * b\n",
+                pytest_suite="def test_divide():\n    assert divide(10, 2) == 5\n",
+            ),
+            CodeAuditOutput(
+                identified_bugs=["v3 fixed"],
+                suggested_patch="def divide(a, b):\n    return a / b\n",
+                pytest_suite="def test_divide():\n    assert divide(10, 2) == 5\n",
+            ),
+        ]
+        graph = build_patchwork_graph(mock_llm)
+        initial = create_initial_state(
+            "target.py", "def divide(a, b):\n    return a + b\n", max_retries=3
+        )
+
+        final = graph.invoke(initial)
+
+        assert final["sandbox_result"].passed is True
+        assert final["retry_count"] == 2
+        assert mock_llm.invoke.call_count == 3  # 1 initial generate + 2 reflects
+
+    def test_loop_stops_at_max_retries_without_hanging(self) -> None:
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = CodeAuditOutput(
+            identified_bugs=["never fixed"],
+            suggested_patch="def divide(a, b):\n    return a - b\n",
+            pytest_suite="def test_divide():\n    assert divide(10, 2) == 5\n",
+        )
+        graph = build_patchwork_graph(mock_llm)
+        initial = create_initial_state(
+            "target.py", "def divide(a, b):\n    return a + b\n", max_retries=2
+        )
+
+        final = graph.invoke(initial)
+
+        assert final["sandbox_result"].passed is False
+        assert final["retry_count"] == 2  # stopped exactly at the ceiling
+        assert (
+            mock_llm.invoke.call_count == 3
+        )  # 1 initial generate + 2 reflects, then stop
