@@ -1,0 +1,39 @@
+{
+  "defects": [
+    {
+      "id": "mutable_default_01",
+      "category": "mutable_default_arguments",
+      "source_filename": "mutable_default_01.py",
+      "oracle_test_filename": "mutable_default_01_test.py",
+      "description": "append_item uses a mutable list default arg, leaking state across calls"
+    },
+    {
+      "id": "mutable_default_02",
+      "category": "mutable_default_arguments",
+      "source_filename": "mutable_default_02.py",
+      "oracle_test_filename": "mutable_default_02_test.py",
+      "description": "add_tag uses a mutable list default arg, leaking state across calls"
+    },
+    {
+      "id": "mutable_default_03",
+      "category": "mutable_default_arguments",
+      "source_filename": "mutable_default_03.py",
+      "oracle_test_filename": "mutable_default_03_test.py",
+      "description": "record_event uses a mutable list default arg, leaking state across calls"
+    },
+    {
+      "id": "mutable_default_04",
+      "category": "mutable_default_arguments",
+      "source_filename": "mutable_default_04.py",
+      "oracle_test_filename": "mutable_default_04_test.py",
+      "description": "increment_count uses a mutable dict default arg, leaking state across calls"
+    },
+    {
+      "id": "mutable_default_05",
+      "category": "mutable_default_arguments",
+      "source_filename": "mutable_default_05.py",
+      "oracle_test_filename": "mutable_default_05_test.py",
+      "description": "Basket.__init__ uses a mutable list default arg, sharing state across instances"
+    }
+  ]
+}
