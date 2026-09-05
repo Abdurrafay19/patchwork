@@ -1,39 +1,33 @@
 {
   "defects": [
-    {
-      "id": "mutable_default_01",
-      "category": "mutable_default_arguments",
-      "source_filename": "mutable_default_01.py",
-      "oracle_test_filename": "mutable_default_01_test.py",
-      "description": "append_item uses a mutable list default arg, leaking state across calls"
-    },
-    {
-      "id": "mutable_default_02",
-      "category": "mutable_default_arguments",
-      "source_filename": "mutable_default_02.py",
-      "oracle_test_filename": "mutable_default_02_test.py",
-      "description": "add_tag uses a mutable list default arg, leaking state across calls"
-    },
-    {
-      "id": "mutable_default_03",
-      "category": "mutable_default_arguments",
-      "source_filename": "mutable_default_03.py",
-      "oracle_test_filename": "mutable_default_03_test.py",
-      "description": "record_event uses a mutable list default arg, leaking state across calls"
-    },
-    {
-      "id": "mutable_default_04",
-      "category": "mutable_default_arguments",
-      "source_filename": "mutable_default_04.py",
-      "oracle_test_filename": "mutable_default_04_test.py",
-      "description": "increment_count uses a mutable dict default arg, leaking state across calls"
-    },
-    {
-      "id": "mutable_default_05",
-      "category": "mutable_default_arguments",
-      "source_filename": "mutable_default_05.py",
-      "oracle_test_filename": "mutable_default_05_test.py",
-      "description": "Basket.__init__ uses a mutable list default arg, sharing state across instances"
-    }
+    {"id": "mutable_default_01", "category": "mutable_default_arguments", "source_filename": "mutable_default_01.py", "oracle_test_filename": "mutable_default_01_test.py", "description": "append_item uses a mutable list default arg, leaking state across calls"},
+    {"id": "mutable_default_02", "category": "mutable_default_arguments", "source_filename": "mutable_default_02.py", "oracle_test_filename": "mutable_default_02_test.py", "description": "add_tag uses a mutable list default arg, leaking state across calls"},
+    {"id": "mutable_default_03", "category": "mutable_default_arguments", "source_filename": "mutable_default_03.py", "oracle_test_filename": "mutable_default_03_test.py", "description": "record_event uses a mutable list default arg, leaking state across calls"},
+    {"id": "mutable_default_04", "category": "mutable_default_arguments", "source_filename": "mutable_default_04.py", "oracle_test_filename": "mutable_default_04_test.py", "description": "increment_count uses a mutable dict default arg, leaking state across calls"},
+    {"id": "mutable_default_05", "category": "mutable_default_arguments", "source_filename": "mutable_default_05.py", "oracle_test_filename": "mutable_default_05_test.py", "description": "Basket.__init__ uses a mutable list default arg, sharing state across instances"},
+
+    {"id": "unhandled_nonetype_01", "category": "unhandled_nonetype", "source_filename": "unhandled_nonetype_01.py", "oracle_test_filename": "unhandled_nonetype_01_test.py", "description": "get_user_email does a deep dict lookup with no .get() fallback, raising KeyError on missing keys"},
+    {"id": "unhandled_nonetype_02", "category": "unhandled_nonetype", "source_filename": "unhandled_nonetype_02.py", "oracle_test_filename": "unhandled_nonetype_02_test.py", "description": "get_theme does a deep dict lookup with no .get() fallback, raising KeyError on missing keys"},
+    {"id": "unhandled_nonetype_03", "category": "unhandled_nonetype", "source_filename": "unhandled_nonetype_03.py", "oracle_test_filename": "unhandled_nonetype_03_test.py", "description": "get_shipping_city does a deep dict lookup with no .get() fallback, raising KeyError on missing keys"},
+    {"id": "unhandled_nonetype_04", "category": "unhandled_nonetype", "source_filename": "unhandled_nonetype_04.py", "oracle_test_filename": "unhandled_nonetype_04_test.py", "description": "get_product_price does a deep dict lookup with no .get() fallback, raising KeyError on missing keys"},
+    {"id": "unhandled_nonetype_05", "category": "unhandled_nonetype", "source_filename": "unhandled_nonetype_05.py", "oracle_test_filename": "unhandled_nonetype_05_test.py", "description": "get_manager_name does a deep dict lookup with no .get() fallback, raising KeyError on missing keys"},
+
+    {"id": "off_by_one_slicing_01", "category": "off_by_one_slicing", "source_filename": "off_by_one_slicing_01.py", "oracle_test_filename": "off_by_one_slicing_01_test.py", "description": "sum_range excludes the end index instead of including it"},
+    {"id": "off_by_one_slicing_02", "category": "off_by_one_slicing", "source_filename": "off_by_one_slicing_02.py", "oracle_test_filename": "off_by_one_slicing_02_test.py", "description": "get_last_n_items slices one element too many due to an off-by-one on the negative index"},
+    {"id": "off_by_one_slicing_03", "category": "off_by_one_slicing", "source_filename": "off_by_one_slicing_03.py", "oracle_test_filename": "off_by_one_slicing_03_test.py", "description": "binary_search uses low < high instead of low <= high, missing the boundary element"},
+    {"id": "off_by_one_slicing_04", "category": "off_by_one_slicing", "source_filename": "off_by_one_slicing_04.py", "oracle_test_filename": "off_by_one_slicing_04_test.py", "description": "get_page_items drops the last item of every page due to an off-by-one on the slice end"},
+    {"id": "off_by_one_slicing_05", "category": "off_by_one_slicing", "source_filename": "off_by_one_slicing_05.py", "oracle_test_filename": "off_by_one_slicing_05_test.py", "description": "first_n_chars drops the last requested character due to an off-by-one on the slice end"},
+
+    {"id": "float_precision_01", "category": "float_precision", "source_filename": "float_precision_01.py", "oracle_test_filename": "float_precision_01_test.py", "description": "is_total_correct uses direct == on floats instead of math.isclose"},
+    {"id": "float_precision_02", "category": "float_precision", "source_filename": "float_precision_02.py", "oracle_test_filename": "float_precision_02_test.py", "description": "average_equals uses direct == on floats instead of math.isclose"},
+    {"id": "float_precision_03", "category": "float_precision", "source_filename": "float_precision_03.py", "oracle_test_filename": "float_precision_03_test.py", "description": "has_reached_target uses direct == on floats instead of math.isclose"},
+    {"id": "float_precision_04", "category": "float_precision", "source_filename": "float_precision_04.py", "oracle_test_filename": "float_precision_04_test.py", "description": "discount_applied_correctly uses direct == on floats instead of math.isclose"},
+    {"id": "float_precision_05", "category": "float_precision", "source_filename": "float_precision_05.py", "oracle_test_filename": "float_precision_05_test.py", "description": "is_zero uses direct == on floats instead of math.isclose"},
+
+    {"id": "resource_leaks_01", "category": "resource_leaks", "source_filename": "resource_leaks_01.py", "oracle_test_filename": "resource_leaks_01_test.py", "description": "read_file_contents opens a file without a context manager, leaking the handle"},
+    {"id": "resource_leaks_02", "category": "resource_leaks", "source_filename": "resource_leaks_02.py", "oracle_test_filename": "resource_leaks_02_test.py", "description": "write_log_line opens a file without a context manager, leaking the handle"},
+    {"id": "resource_leaks_03", "category": "resource_leaks", "source_filename": "resource_leaks_03.py", "oracle_test_filename": "resource_leaks_03_test.py", "description": "count_lines opens a file without a context manager, leaking the handle"},
+    {"id": "resource_leaks_04", "category": "resource_leaks", "source_filename": "resource_leaks_04.py", "oracle_test_filename": "resource_leaks_04_test.py", "description": "read_stripped_lines opens a file without a context manager, leaking the handle"},
+    {"id": "resource_leaks_05", "category": "resource_leaks", "source_filename": "resource_leaks_05.py", "oracle_test_filename": "resource_leaks_05_test.py", "description": "read_json_file opens a file without a context manager, leaking the handle"}
   ]
 }
