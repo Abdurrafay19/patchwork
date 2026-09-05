@@ -28,7 +28,6 @@ MAX_MESSAGE_CHARS: Final[int] = 300
 
 
 class LintIssue(BaseModel):  # Diagonostic about single lint violation found by ruff.
-
     code: str | None = (
         None  # Ruff rule code, e.g. "F401" or "B006". None if not provided.
     )
@@ -39,13 +38,10 @@ class LintIssue(BaseModel):  # Diagonostic about single lint violation found by 
     line: int  # 1-indexed line number where the issue starts.
     column: int  # 1-indexed column number where the issue starts.
     severity: str = "error"  # Ruff's own severity classification for the rule.
-    is_fixable: bool = (
-        False  # True if ruff reports an automatic fix is available for this issue (safe or unsafe).
-    )
+    is_fixable: bool = False  # True if ruff reports an automatic fix is available for this issue (safe or unsafe).
 
 
 class LintRunResult(BaseModel):
-
     success: (
         bool  # did ruff run without any failures (even if it found issues)? True/False
     )
@@ -103,9 +99,7 @@ def _parse_ruff_json(
 def run_ruff_linter(
     source_code: str,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
-) -> (
-    LintRunResult
-):  # runs `ruff check` on the provided source code string, returning a structured result with diagnostics and metadata.
+) -> LintRunResult:  # runs `ruff check` on the provided source code string, returning a structured result with diagnostics and metadata.
     if timeout_sec <= 0:
         raise ValueError(f"timeout_sec must be positive, got {timeout_sec!r}")
 
