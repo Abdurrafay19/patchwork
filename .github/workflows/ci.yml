@@ -1,13 +1,11 @@
 name: CI
 
-# Runs on every push and PR. Scope is intentionally limited to code that
-# doesn't require Ollama or a GPU: ast_inspector, linter, sandbox, and
-# (once it exists) any LangGraph nodes tested with a mocked SLM.
+# Runs on every push and PR. Scope is intentionally limited to code that doesn't require Ollama or a GPU
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
-    branches: [main]
+    branches: [master, main]
 
 jobs:
   lint-type-test:
@@ -43,17 +41,12 @@ jobs:
       - name: Pytest with coverage
         run: pytest tests/ -v --cov=patchwork --cov-report=term-missing
 
-  # Placeholder for Day 3+: mocked LangGraph node/reflection-loop tests.
-  # Deliberately does NOT touch Ollama or a real model — only patches
-  # ChatOllama.invoke / structured_llm.invoke. Uncomment once graph.py
-  # and its mocked test suite exist.
-  #
-  # graph-tests:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: "3.11"
-  #     - run: pip install -r requirements.txt && pip install pytest
-  #     - run: pytest tests/test_graph.py -v -m "not requires_ollama"
+  graph-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt && pip install pytest
+      - run: pytest tests/test_graph.py -v -m "not requires_ollama"
