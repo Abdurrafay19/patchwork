@@ -55,6 +55,49 @@ class TestCodeAuditOutputMarkdownStripping:
         assert output.pytest_suite == "def test_add():\n    assert add(1, 2) == 3"
 
 
+class TestCodeAuditOutputTestContamination:
+    def test_test_function_in_patch_rejected(self) -> None:
+        # real failure mode observed in a live reflection run: the patch
+        # field contained the fixed function AND a test_* function
+        contaminated = (
+            "def f():\n    return 1\n\n\ndef test_f():\n    assert f() == 1\n"
+        )
+        with pytest.raises(ValidationError):
+            CodeAuditOutput(
+                identified_bugs=[],
+                suggested_patch=contaminated,
+                pytest_suite="def test_x():\n    assert True",
+            )
+
+    def test_clean_patch_with_no_test_functions_accepted(self) -> None:
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="def f():\n    return 1\n",
+            pytest_suite="def test_f():\n    assert f() == 1\n",
+        )
+        assert "def test_" not in output.suggested_patch
+
+    def test_unparseable_patch_not_falsely_flagged_as_contaminated(self) -> None:
+        # syntax errors are ast_inspector's/sandbox's job to catch, not
+        # this validator's -- it should not raise here
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="def broken(:\n    pass",
+            pytest_suite="def test_x():\n    assert True",
+        )
+        assert output.suggested_patch == "def broken(:\n    pass"
+
+    def test_pytest_suite_field_itself_is_not_checked_for_test_functions(self) -> None:
+        # pytest_suite is SUPPOSED to contain test_* functions -- only
+        # suggested_patch is checked
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="def f():\n    return 1\n",
+            pytest_suite="def test_f():\n    assert f() == 1\n",
+        )
+        assert "def test_f" in output.pytest_suite
+
+
 class TestCodeAuditOutputEmptyFieldRejection:
     def test_empty_patch_after_fence_stripping_raises(self) -> None:
         # Covers checklist item 1.4: a response that is *only* a fence
