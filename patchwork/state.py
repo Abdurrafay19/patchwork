@@ -1,4 +1,6 @@
 """
+patchwork.state
+=================
 Shared type contracts for the Patchwork agent: the Pydantic schema the
 SLM's structured output must conform to, and the LangGraph `AgentState`
 that flows between nodes.
@@ -14,6 +16,7 @@ in the node implementations in `graph.py`.
 
 from __future__ import annotations
 
+import ast
 import re
 from typing import Final, TypedDict
 
@@ -61,6 +64,23 @@ def _strip_markdown_fences(value: str) -> str:
     return value
 
 
+def _contains_test_function(code: str) -> bool:
+    # detects checklist-adjacent contamination: SLM bleeding test functions
+    # into suggested_patch instead of keeping them in pytest_suite. Uses
+    # ast, not regex, since a substring match on "def test_" would also
+    # false-positive on a docstring or comment mentioning test functions.
+    try:
+        tree = ast.parse(code)
+    except (SyntaxError, ValueError):
+        return False  # not this check's job to catch syntax errors
+
+    return any(
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name.startswith("test_")
+        for node in ast.walk(tree)
+    )
+
+
 class CodeAuditOutput(BaseModel):
     """Structured output contract the SLM must satisfy for a single
     audit-and-generate or reflect-and-heal turn.
@@ -93,6 +113,21 @@ class CodeAuditOutput(BaseModel):
         if not isinstance(value, str):
             return value
         return _strip_markdown_fences(value).strip()
+
+    @field_validator("suggested_patch")
+    @classmethod
+    def _reject_test_contaminated_patch(cls, value: str) -> str:
+        # real bug caught via manual_reflection_test.py: a reflection
+        # attempt returned test_* functions inside suggested_patch, mixed
+        # with the actual source. Rejecting here routes it through the
+        # same schema-validation-failure path graph.py already handles
+        # (burn a retry, don't corrupt current_code) instead of letting
+        # contaminated code silently become the new "fixed" file.
+        if _contains_test_function(value):
+            raise ValueError(
+                "suggested_patch contains test_* function(s) -- test code bled into the source patch"
+            )
+        return value
 
     @field_validator("identified_bugs", mode="before")
     @classmethod
