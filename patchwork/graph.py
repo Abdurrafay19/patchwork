@@ -1,9 +1,9 @@
 """
 patchwork.graph
 =================
-Day 2: single-pass LangGraph workflow. static_analysis -> audit_and_generate
--> execute_tests -> END. No reflection/retry loop yet -- that's Day 3
-(node_reflect_and_heal + the conditional edge back to execute_tests).
+LangGraph workflow: static_analysis -> audit_and_generate -> execute_tests,
+then conditionally either END (tests passed, or retries exhausted) or
+reflect -> execute_tests again (tests failed, retries remain).
 
 The SLM call is injected as a dependency (build_structured_llm / passed
 into build_patchwork_graph) rather than instantiated at import time, so
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Final
+from typing import Final, Literal
 
 from langchain_core.exceptions import OutputParserException
 from langchain_core.runnables import Runnable
@@ -68,6 +68,26 @@ def _build_audit_prompt(state: AgentState) -> str:
         f"Syntax status: {syntax_note}\n"
         f"Linter issues: {lint_summary}\n\n"
         f"Source code:\n```python\n{state['current_code']}\n```"
+    )
+
+
+def _build_reflect_prompt(state: AgentState) -> str:
+    sandbox = state["sandbox_result"]
+    # sandbox.stdout/stderr are already truncated to the last 20 lines /
+    # 1000 chars by sandbox.py -- no extra truncation needed here.
+    failure_output = (
+        sandbox.stderr
+        if sandbox and sandbox.stderr
+        else (sandbox.stdout if sandbox else "unknown failure")
+    )
+
+    return (
+        "The previous patch and test suite failed execution. Analyze the "
+        "failure output below and fix BOTH the code and the tests so they "
+        "pass deterministically.\n\n"
+        f"Execution output:\n{failure_output}\n\n"
+        f"Current code:\n```python\n{state['current_code']}\n```\n\n"
+        f"Current tests:\n```python\n{state['current_tests']}\n```"
     )
 
 
@@ -126,6 +146,44 @@ def make_audit_and_generate_node(
     return node_audit_and_generate
 
 
+def make_reflect_and_heal_node(
+    structured_llm: Runnable[str, CodeAuditOutput],
+) -> Callable[[AgentState], AgentState]:
+    def node_reflect_and_heal(state: AgentState) -> AgentState:
+        next_retry_count = state["retry_count"] + 1
+        prompt = _build_reflect_prompt(state)
+
+        try:
+            result = structured_llm.invoke(prompt)
+        except (ValidationError, OutputParserException) as exc:
+            # same failure mode as audit_and_generate -- don't crash, don't
+            # touch current_code/current_tests, just burn the retry and
+            # let route_after_execution decide whether to try again.
+            logger.warning(
+                "reflection_failed",
+                extra={"event": "reflection_failed", "error": str(exc)},
+            )
+            return {
+                **state,
+                "retry_count": next_retry_count,
+                "audit_trail": [
+                    *state["audit_trail"],
+                    f"Reflection attempt {next_retry_count} failed schema validation: {exc}",
+                ],
+            }
+
+        trail_entry = f"Reflection attempt {next_retry_count}: patched code and tests based on failure output"
+        return {
+            **state,
+            "current_code": result.suggested_patch,
+            "current_tests": result.pytest_suite,
+            "retry_count": next_retry_count,
+            "audit_trail": [*state["audit_trail"], trail_entry],
+        }
+
+    return node_reflect_and_heal
+
+
 def node_execute_tests(state: AgentState) -> AgentState:
     sandbox_result = run_pytest_sandbox(state["current_code"], state["current_tests"])
     trail_entry = f"Test execution: passed={sandbox_result.passed}, timed_out={sandbox_result.timed_out}"
@@ -138,6 +196,15 @@ def node_execute_tests(state: AgentState) -> AgentState:
         "sandbox_result": sandbox_result,
         "audit_trail": [*state["audit_trail"], trail_entry],
     }
+
+
+def route_after_execution(state: AgentState) -> Literal["end", "reflect"]:
+    sandbox = state["sandbox_result"]
+    if sandbox is not None and sandbox.passed:
+        return "end"
+    if state["retry_count"] >= state["max_retries"]:
+        return "end"
+    return "reflect"
 
 
 def build_patchwork_graph(
@@ -156,10 +223,19 @@ def build_patchwork_graph(
         make_audit_and_generate_node(structured_llm),  # type: ignore[arg-type]
     )
     workflow.add_node("execute_tests", node_execute_tests)
+    workflow.add_node(
+        "reflect",
+        make_reflect_and_heal_node(structured_llm),  # type: ignore[arg-type]
+    )
 
     workflow.set_entry_point("static_analysis")
     workflow.add_edge("static_analysis", "audit_and_generate")
     workflow.add_edge("audit_and_generate", "execute_tests")
-    workflow.add_edge("execute_tests", END)
+    workflow.add_conditional_edges(
+        "execute_tests",
+        route_after_execution,
+        {"end": END, "reflect": "reflect"},
+    )
+    workflow.add_edge("reflect", "execute_tests")
 
     return workflow.compile()
