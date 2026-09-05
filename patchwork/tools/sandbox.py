@@ -9,6 +9,17 @@ LangGraph, or Qwen. Its only job is to take a source module and a test
 suite (both as strings), execute the tests in an isolated temporary
 directory via `pytest`, and return a strictly-typed, truncated result.
 
+Design goals (see `critical_engineering_and_execution_advice`):
+    * Every subprocess call is time-boxed. A hallucinated `while True:`
+      in generated test code must never hang the agent process.
+    * Generated code/tests are never written into the project directory.
+      Every run gets a disposable `tempfile.TemporaryDirectory()`.
+    * Tool output is truncated before it re-enters the LLM context window,
+      to protect the ~1.5 GB VRAM KV-cache budget on a 4 GB GPU.
+    * Structured logging only -- no `print()`. This module logs via the
+      standard `logging` module with structured `extra` fields; JSON
+      formatting is configured by the application entrypoint, keeping
+      telemetry concerns decoupled from this tool's core logic.
 """
 
 from __future__ import annotations
@@ -28,7 +39,7 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("patchwork.tools.sandbox")
 
-# --- Constants
+# --- Tunables -------------------------------------------------------------
 
 DEFAULT_TIMEOUT_SEC: Final[int] = 10
 MAX_OUTPUT_CHARS: Final[int] = 1000
@@ -150,7 +161,11 @@ def _limit_subprocess_memory() -> None:
     import resource  # POSIX-only; imported lazily so Windows never touches it.
 
     limit_bytes = MAX_MEMORY_MB * 1024 * 1024
-    resource.setrlimit(resource.RLIMIT_AS, (limit_bytes, limit_bytes))
+    # mypy on Windows has no `resource` stub at all (module doesn't exist
+    # there) -- this function is only ever called on POSIX, guarded by
+    # platform.system() at the call site, but mypy checks function bodies
+    # statically regardless of that runtime guard. Safe to ignore here.
+    resource.setrlimit(resource.RLIMIT_AS, (limit_bytes, limit_bytes))  # type: ignore[attr-defined, unused-ignore]
 
 
 @contextmanager
