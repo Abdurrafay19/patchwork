@@ -13,7 +13,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 DATASET_DIR: Final[Path] = Path(__file__).parent / "dataset"
 ORACLE_TESTS_DIR: Final[Path] = DATASET_DIR / "oracle_tests"
@@ -30,6 +30,24 @@ class DefectRecord(BaseModel):
 
 class DefectManifest(BaseModel):
     defects: list[DefectRecord] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _check_unique_ids(self) -> DefectManifest:
+        # a duplicate id would let one defect silently shadow another in
+        # any dict/lookup keyed by id (evaluate.py's test _record() helper
+        # does exactly that) -- fail loudly at load time, not later at an
+        # unrelated call site
+        seen: set[str] = set()
+        duplicates: set[str] = set()
+        for defect in self.defects:
+            if defect.id in seen:
+                duplicates.add(defect.id)
+            seen.add(defect.id)
+        if duplicates:
+            raise ValueError(
+                f"Duplicate defect id(s) in manifest: {sorted(duplicates)}"
+            )
+        return self
 
 
 def load_manifest(path: Path = MANIFEST_PATH) -> DefectManifest:
