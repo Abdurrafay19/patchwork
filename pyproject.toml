@@ -1,0 +1,15 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+extend-exclude = ["benchmarks/dataset"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+exclude = "benchmarks/dataset/"
+
+[[tool.mypy.overrides]]
+module = "pynvml.*"
+ignore_missing_imports = true
