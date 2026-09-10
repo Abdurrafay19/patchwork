@@ -7,7 +7,15 @@ since this module's whole job is reading real files off disk correctly.
 
 from __future__ import annotations
 
-from benchmarks.manifest import load_defect_source, load_manifest, load_oracle_test
+import pytest
+from pydantic import ValidationError
+
+from benchmarks.manifest import (
+    DefectManifest,
+    load_defect_source,
+    load_manifest,
+    load_oracle_test,
+)
 
 
 class TestLoadManifest:
@@ -28,6 +36,22 @@ class TestLoadManifest:
         manifest = load_manifest()
         ids = [record.id for record in manifest.defects]
         assert len(ids) == len(set(ids))
+
+    def test_duplicate_id_raises_at_load_time(self) -> None:
+        # covers _check_unique_ids directly -- the real manifest.json
+        # never has duplicates, so this constructs one by hand to prove
+        # the validator itself fires, not just that the shipped file
+        # happens to be clean
+        duplicate_json = (
+            '{"defects": ['
+            '{"id": "dup", "category": "x", "source_filename": "a.py", '
+            '"oracle_test_filename": "a_test.py", "description": "d1"},'
+            '{"id": "dup", "category": "x", "source_filename": "b.py", '
+            '"oracle_test_filename": "b_test.py", "description": "d2"}'
+            "]}"
+        )
+        with pytest.raises(ValidationError):
+            DefectManifest.model_validate_json(duplicate_json)
 
 
 class TestLoadDefectFiles:
