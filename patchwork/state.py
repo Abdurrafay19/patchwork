@@ -113,7 +113,7 @@ class CodeAuditOutput(BaseModel):
         if not isinstance(value, str):
             return value
         return _strip_markdown_fences(value).strip()
-
+    
     @field_validator("suggested_patch")
     @classmethod
     def _reject_test_contaminated_patch(cls, value: str) -> str:
@@ -127,6 +127,15 @@ class CodeAuditOutput(BaseModel):
             raise ValueError(
                 "suggested_patch contains test_* function(s) -- test code bled into the source patch"
             )
+        return value
+    
+    @field_validator("suggested_patch")
+    @classmethod
+    def _reject_unparseable_patch(cls, value: str) -> str:
+        try:
+            ast.parse(value)
+        except SyntaxError as exc:
+            raise ValueError(f"suggested_patch is not valid Python: {exc}") from exc
         return value
 
     @field_validator("identified_bugs", mode="before")
