@@ -8,15 +8,19 @@ is a manual/local step, not something CI can rely on having a GPU for.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from langchain_core.exceptions import OutputParserException
 from pydantic import ValidationError
 
 from patchwork.graph import (
+    DEFAULT_MODEL,
+    DEFAULT_NUM_CTX,
+    DEFAULT_TEMPERATURE,
     _build_audit_prompt,
     _build_reflect_prompt,
     build_patchwork_graph,
+    build_structured_llm,
     make_audit_and_generate_node,
     make_reflect_and_heal_node,
     node_execute_tests,
@@ -30,6 +34,42 @@ def _mock_llm(result: CodeAuditOutput) -> MagicMock:
     mock = MagicMock()
     mock.invoke.return_value = result
     return mock
+
+
+class TestBuildStructuredLlm:
+    """Mocks ChatOllama itself -- never opens a real connection to Ollama.
+
+    Covers patchwork.graph's only two lines that no other test in this
+    file exercises: build_structured_llm never gets called elsewhere,
+    since every other test injects a MagicMock as structured_llm directly.
+    """
+
+    @patch("patchwork.graph.ChatOllama")
+    def test_builds_with_default_params(self, mock_chat_ollama: MagicMock) -> None:
+        mock_llm_instance = MagicMock()
+        mock_chat_ollama.return_value = mock_llm_instance
+
+        build_structured_llm()
+
+        mock_chat_ollama.assert_called_once_with(
+            model=DEFAULT_MODEL,
+            temperature=DEFAULT_TEMPERATURE,
+            num_ctx=DEFAULT_NUM_CTX,
+        )
+        mock_llm_instance.with_structured_output.assert_called_once_with(
+            CodeAuditOutput
+        )
+
+    @patch("patchwork.graph.ChatOllama")
+    def test_builds_with_custom_params(self, mock_chat_ollama: MagicMock) -> None:
+        mock_llm_instance = MagicMock()
+        mock_chat_ollama.return_value = mock_llm_instance
+
+        build_structured_llm(model="custom:model", temperature=0.5, num_ctx=4096)
+
+        mock_chat_ollama.assert_called_once_with(
+            model="custom:model", temperature=0.5, num_ctx=4096
+        )
 
 
 class TestBuildAuditPrompt:
@@ -49,6 +89,15 @@ class TestBuildAuditPrompt:
         state = node_static_analysis(state)
         prompt = _build_audit_prompt(state)
         assert "F401" in prompt
+
+    def test_reports_invalid_syntax_note(self) -> None:
+        # covers the "else" branch of syntax_note in _build_audit_prompt --
+        # every other test here feeds valid syntax through
+        # node_static_analysis, so this branch was previously unexercised
+        state = create_initial_state("target.py", "def broken(:\n    pass\n")
+        state = node_static_analysis(state)
+        prompt = _build_audit_prompt(state)
+        assert "INVALID SYNTAX" in prompt
 
 
 class TestNodeStaticAnalysis:
@@ -130,8 +179,9 @@ class TestNodeExecuteTests:
 
         new_state = node_execute_tests(state)
 
-        assert new_state["sandbox_result"] is not None
-        assert new_state["sandbox_result"].passed is True
+        sandbox_result = new_state["sandbox_result"]
+        assert sandbox_result is not None
+        assert sandbox_result.passed is True
 
     def test_failing_generated_tests_report_not_passed(self) -> None:
         state = create_initial_state("target.py", "def add(a, b):\n    return a - b\n")
@@ -139,7 +189,9 @@ class TestNodeExecuteTests:
 
         new_state = node_execute_tests(state)
 
-        assert new_state["sandbox_result"].passed is False
+        sandbox_result = new_state["sandbox_result"]
+        assert sandbox_result is not None
+        assert sandbox_result.passed is False
 
 
 class TestBuildPatchworkGraphIntegration:
@@ -158,7 +210,9 @@ class TestBuildPatchworkGraphIntegration:
 
         final = graph.invoke(initial)
 
-        assert final["sandbox_result"].passed is True
+        sandbox_result = final["sandbox_result"]
+        assert sandbox_result is not None
+        assert sandbox_result.passed is True
         assert final["current_code"] == mock_result.suggested_patch
         assert (
             len(final["audit_trail"]) == 4
@@ -299,7 +353,9 @@ class TestReflectionLoopIntegration:
 
         final = graph.invoke(initial)
 
-        assert final["sandbox_result"].passed is True
+        sandbox_result = final["sandbox_result"]
+        assert sandbox_result is not None
+        assert sandbox_result.passed is True
         assert final["retry_count"] == 2
         assert mock_llm.invoke.call_count == 3  # 1 initial generate + 2 reflects
 
@@ -317,7 +373,9 @@ class TestReflectionLoopIntegration:
 
         final = graph.invoke(initial)
 
-        assert final["sandbox_result"].passed is False
+        sandbox_result = final["sandbox_result"]
+        assert sandbox_result is not None
+        assert sandbox_result.passed is False
         assert final["retry_count"] == 2  # stopped exactly at the ceiling
         assert (
             mock_llm.invoke.call_count == 3

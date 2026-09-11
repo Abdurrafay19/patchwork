@@ -19,7 +19,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Final, ParamSpec, TypeVar
 
-import pynvml  # type: ignore[import-untyped]  # nvidia-ml-py ships no py.typed marker
+import pynvml
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("patchwork.telemetry.profiler")

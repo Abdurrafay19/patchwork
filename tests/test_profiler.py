@@ -1,14 +1,20 @@
 """
 tests/test_profiler.py
 ========================
-This sandbox and CI both have no NVIDIA GPU, so every test here runs
-against the real no-GPU fallback path -- which is exactly the path that
-matters most to get right, since it's the one CI will always exercise.
+The no-GPU fallback path is mocked (patching pynvml.nvmlInit to raise),
+not relied on from the host's actual hardware -- a dev machine with a
+real GPU must see identical, deterministic results here as CI (which
+has no GPU). Testing against real hardware state would make these tests
+flake depending on what machine runs them; that's what
+scripts/manual_profiler_test.py is for instead.
 """
 
 from __future__ import annotations
 
 import time
+from unittest.mock import MagicMock, patch
+
+import pynvml
 
 from patchwork.telemetry.profiler import (
     GPUProfiler,
@@ -19,34 +25,55 @@ from patchwork.telemetry.profiler import (
 
 
 class TestGPUProfilerNoGPU:
-    def test_context_manager_does_not_raise_without_gpu(self) -> None:
+    """Every test here patches pynvml.nvmlInit to force the no-GPU path,
+    so results are identical regardless of the host's actual hardware."""
+
+    @patch("patchwork.telemetry.profiler.pynvml.nvmlInit")
+    def test_context_manager_does_not_raise_without_gpu(
+        self, mock_init: MagicMock
+    ) -> None:
+        mock_init.side_effect = pynvml.NVMLError_LibraryNotFound()
         with GPUProfiler() as profiler:
             time.sleep(0.05)
         result = profiler.result()
         assert isinstance(result, TelemetryResult)
 
-    def test_gpu_available_false_without_driver(self) -> None:
+    @patch("patchwork.telemetry.profiler.pynvml.nvmlInit")
+    def test_gpu_available_false_without_driver(self, mock_init: MagicMock) -> None:
+        mock_init.side_effect = pynvml.NVMLError_LibraryNotFound()
         with GPUProfiler() as profiler:
             pass
         assert profiler.result().gpu_available is False
 
-    def test_peak_vram_none_without_gpu(self) -> None:
+    @patch("patchwork.telemetry.profiler.pynvml.nvmlInit")
+    def test_peak_vram_none_without_gpu(self, mock_init: MagicMock) -> None:
+        mock_init.side_effect = pynvml.NVMLError_LibraryNotFound()
         with GPUProfiler() as profiler:
             pass
         assert profiler.result().peak_vram_mb is None
 
-    def test_duration_still_measured_without_gpu(self) -> None:
+    @patch("patchwork.telemetry.profiler.pynvml.nvmlInit")
+    def test_duration_still_measured_without_gpu(self, mock_init: MagicMock) -> None:
+        mock_init.side_effect = pynvml.NVMLError_LibraryNotFound()
         with GPUProfiler(interval=0.01) as profiler:
             time.sleep(0.1)
         result = profiler.result()
         assert result.duration_sec >= 0.1
 
-    def test_error_message_populated_when_nvml_unavailable(self) -> None:
+    @patch("patchwork.telemetry.profiler.pynvml.nvmlInit")
+    def test_error_message_populated_when_nvml_unavailable(
+        self, mock_init: MagicMock
+    ) -> None:
+        mock_init.side_effect = pynvml.NVMLError_LibraryNotFound()
         with GPUProfiler() as profiler:
             pass
         assert profiler.result().error_message is not None
 
-    def test_result_is_pydantic_model_and_json_serializable(self) -> None:
+    @patch("patchwork.telemetry.profiler.pynvml.nvmlInit")
+    def test_result_is_pydantic_model_and_json_serializable(
+        self, mock_init: MagicMock
+    ) -> None:
+        mock_init.side_effect = pynvml.NVMLError_LibraryNotFound()
         with GPUProfiler() as profiler:
             pass
         payload = profiler.result().model_dump_json()

@@ -30,13 +30,13 @@ jobs:
           pip install ruff mypy pytest pytest-cov
 
       - name: Ruff lint
-        run: ruff check patchwork/ tests/
+        run: ruff check patchwork/ tests/ benchmarks/manifest.py benchmarks/evaluate.py benchmarks/__init__.py
 
       - name: Ruff format check
-        run: ruff format --check patchwork/ tests/
+        run: ruff format --check patchwork/ tests/ benchmarks/manifest.py benchmarks/evaluate.py
 
       - name: Mypy strict
-        run: mypy --strict patchwork/
+        run: mypy --strict patchwork/ benchmarks/manifest.py benchmarks/evaluate.py
 
       - name: Pytest with coverage
         run: pytest tests/ -v --cov=patchwork --cov-report=term-missing
