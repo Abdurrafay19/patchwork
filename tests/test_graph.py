@@ -215,7 +215,7 @@ class TestBuildPatchworkGraphIntegration:
         assert sandbox_result.passed is True
         assert final["current_code"] == mock_result.suggested_patch
         assert (
-            len(final["audit_trail"]) == 4
+            len(final["audit_trail"]) == 5
         )  # start + static_analysis + generate + execute
 
     def test_full_pass_with_schema_failure_still_completes(self) -> None:
