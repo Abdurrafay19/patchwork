@@ -2,8 +2,8 @@
 patchwork.graph
 =================
 LangGraph workflow: static_analysis -> audit_and_generate -> execute_tests,
-then conditionally either END (tests passed, or retries exhausted) or
-reflect -> execute_tests again (tests failed, retries remain).
+then conditionally either compile_report -> END (tests passed, or retries
+exhausted) or reflect -> execute_tests again (tests failed, retries remain).
 
 The SLM call is injected as a dependency (build_structured_llm / passed
 into build_patchwork_graph) rather than instantiated at import time, so
@@ -23,6 +23,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import ValidationError
 
+from patchwork.report import build_audit_report
 from patchwork.state import AgentState, CodeAuditOutput
 from patchwork.tools.ast_inspector import inspect_source
 from patchwork.tools.linter import run_ruff_linter
@@ -120,9 +121,10 @@ def make_audit_and_generate_node(
             result = structured_llm.invoke(prompt)
         except (ValidationError, OutputParserException) as exc:
             # SLM returned something that didn't fit CodeAuditOutput (truncated
-            # JSON, markdown-wrapped garbage that survived stripping, etc).
-            # Don't crash the graph -- leave current_code/current_tests as-is
-            # and let execute_tests report the failure downstream.
+            # JSON, markdown-wrapped garbage that survived stripping, prose
+            # instead of code, etc). Don't crash the graph -- leave
+            # current_code/current_tests as-is and let execute_tests report
+            # the failure downstream.
             logger.warning(
                 "audit_generation_failed",
                 extra={"event": "audit_generation_failed", "error": str(exc)},
@@ -198,6 +200,20 @@ def node_execute_tests(state: AgentState) -> AgentState:
     }
 
 
+def node_compile_report(state: AgentState) -> AgentState:
+    report = build_audit_report(state)
+    trail_entry = "Compiled final audit report"
+    logger.info(
+        "node_compile_report_complete",
+        extra={"event": "node_compile_report_complete"},
+    )
+    return {
+        **state,
+        "report_markdown": report,
+        "audit_trail": [*state["audit_trail"], trail_entry],
+    }
+
+
 def route_after_execution(state: AgentState) -> Literal["end", "reflect"]:
     sandbox = state["sandbox_result"]
     if sandbox is not None and sandbox.passed:
@@ -227,6 +243,7 @@ def build_patchwork_graph(
         "reflect",
         make_reflect_and_heal_node(structured_llm),  # type: ignore[arg-type]
     )
+    workflow.add_node("compile_report", node_compile_report)
 
     workflow.set_entry_point("static_analysis")
     workflow.add_edge("static_analysis", "audit_and_generate")
@@ -234,8 +251,9 @@ def build_patchwork_graph(
     workflow.add_conditional_edges(
         "execute_tests",
         route_after_execution,
-        {"end": END, "reflect": "reflect"},
+        {"end": "compile_report", "reflect": "reflect"},
     )
     workflow.add_edge("reflect", "execute_tests")
+    workflow.add_edge("compile_report", END)
 
     return workflow.compile()
