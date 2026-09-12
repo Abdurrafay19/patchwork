@@ -37,7 +37,9 @@ def _parse_args(argv: list[str] | None = None) -> Namespace:
     audit_parser = subparsers.add_parser(
         "audit", help="Audit a Python file, optionally self-healing test failures."
     )
-    audit_parser.add_argument("target", type=Path, help="Path to the Python file to audit.")
+    audit_parser.add_argument(
+        "target", type=Path, help="Path to the Python file to audit."
+    )
     audit_parser.add_argument(
         "--heal",
         action="store_true",
@@ -86,7 +88,9 @@ def _run_audit(target_path: Path, source: str, max_retries: int) -> AgentState:
 
 def _print_patched_code(state: AgentState) -> None:
     console.rule("[bold]Patched Code[/bold]")
-    console.print(Syntax(state["current_code"], "python", theme="ansi_dark", line_numbers=True))
+    console.print(
+        Syntax(state["current_code"], "python", theme="ansi_dark", line_numbers=True)
+    )
 
 
 def _print_summary_table(
@@ -101,13 +105,16 @@ def _print_summary_table(
     table.add_row("Retry count", f"{state['retry_count']} / {state['max_retries']}")
     table.add_row("Duration", f"{duration_sec:.2f}s")
     table.add_row(
-        "Peak VRAM", f"{peak_vram_mb:.0f} MB" if peak_vram_mb is not None else "N/A (no GPU)"
+        "Peak VRAM",
+        f"{peak_vram_mb:.0f} MB" if peak_vram_mb is not None else "N/A (no GPU)",
     )
 
     console.print(table)
 
 
-def _write_outputs(target_path: Path, output_dir: Path, state: AgentState) -> tuple[Path, Path]:
+def _write_outputs(
+    target_path: Path, output_dir: Path, state: AgentState
+) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = target_path.stem
 
