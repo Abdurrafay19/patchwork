@@ -77,16 +77,6 @@ class TestCodeAuditOutputTestContamination:
         )
         assert "def test_" not in output.suggested_patch
 
-    def test_unparseable_patch_not_falsely_flagged_as_contaminated(self) -> None:
-        # syntax errors are ast_inspector's/sandbox's job to catch, not
-        # this validator's -- it should not raise here
-        output = CodeAuditOutput(
-            identified_bugs=[],
-            suggested_patch="def broken(:\n    pass",
-            pytest_suite="def test_x():\n    assert True",
-        )
-        assert output.suggested_patch == "def broken(:\n    pass"
-
     def test_pytest_suite_field_itself_is_not_checked_for_test_functions(self) -> None:
         # pytest_suite is SUPPOSED to contain test_* functions -- only
         # suggested_patch is checked
@@ -96,6 +86,47 @@ class TestCodeAuditOutputTestContamination:
             pytest_suite="def test_f():\n    assert f() == 1\n",
         )
         assert "def test_f" in output.pytest_suite
+
+
+class TestCodeAuditOutputSyntaxValidation:
+    def test_unparseable_patch_is_rejected(self) -> None:
+        # covers _reject_unparseable_patch directly: a patch that isn't
+        # valid Python must fail schema validation here, not silently
+        # pass through and only surface as a confusing sandbox failure
+        # three steps downstream (see manual CLI run against
+        # manual_smoke_test.py, which is what surfaced this gap -- the
+        # SLM returned a plain-English sentence instead of code, and it
+        # sailed through every check that existed at the time).
+        with pytest.raises(ValidationError):
+            CodeAuditOutput(
+                identified_bugs=[],
+                suggested_patch="def broken(:\n    pass",
+                pytest_suite="def test_x():\n    assert True",
+            )
+
+    def test_prose_instead_of_code_is_rejected(self) -> None:
+        # the exact real-world failure that motivated this validator --
+        # a syntactically-nonsensical English sentence is technically
+        # non-empty text, so only an actual parse attempt catches it
+        with pytest.raises(ValidationError):
+            CodeAuditOutput(
+                identified_bugs=[],
+                suggested_patch=(
+                    "Replace the '+' operator with the '/' operator "
+                    "in the buggy source code."
+                ),
+                pytest_suite="def test_x():\n    assert True",
+            )
+
+    def test_valid_python_patch_still_accepted(self) -> None:
+        # sanity check that the new validator doesn't over-reject --
+        # ordinary valid code must still pass cleanly
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="def f():\n    return 1\n",
+            pytest_suite="def test_f():\n    assert f() == 1\n",
+        )
+        assert output.suggested_patch == "def f():\n    return 1"
 
 
 class TestCodeAuditOutputEmptyFieldRejection:
@@ -183,6 +214,7 @@ class TestCreateInitialState:
         assert state["ast_result"] is None
         assert state["lint_result"] is None
         assert state["sandbox_result"] is None
+        assert state["report_markdown"] == ""
         assert state["retry_count"] == 0
         assert state["max_retries"] == DEFAULT_MAX_RETRIES
         assert len(state["audit_trail"]) == 1
