@@ -113,7 +113,7 @@ class CodeAuditOutput(BaseModel):
         if not isinstance(value, str):
             return value
         return _strip_markdown_fences(value).strip()
-    
+
     @field_validator("suggested_patch")
     @classmethod
     def _reject_test_contaminated_patch(cls, value: str) -> str:
@@ -128,10 +128,17 @@ class CodeAuditOutput(BaseModel):
                 "suggested_patch contains test_* function(s) -- test code bled into the source patch"
             )
         return value
-    
+
     @field_validator("suggested_patch")
     @classmethod
     def _reject_unparseable_patch(cls, value: str) -> str:
+        # real failure caught via cli.py manual testing: the SLM returned
+        # a plain-English description instead of code. min_length=1 and
+        # the fence-stripping above both let this through, since prose
+        # is non-empty, valid text -- only an actual parse attempt catches
+        # it. Rejecting here (rather than letting it fall through to
+        # node_execute_tests) turns a confusing "tests failed" into an
+        # honest "generation failed schema validation".
         try:
             ast.parse(value)
         except SyntaxError as exc:
@@ -198,6 +205,9 @@ class AgentState(TypedDict):
             `None` before the first analysis pass has run.
         sandbox_result: Most recent sandboxed test execution, or `None`
             before the first execute pass has run.
+        report_markdown: Final Markdown audit report, populated by
+            `node_compile_report` on the terminal "end" path. Empty
+            string before that node has run.
         retry_count: Number of reflect-and-heal cycles completed so far.
         max_retries: Hard ceiling on `retry_count` before the graph
             routes to a terminal "fail gracefully" edge instead of
@@ -213,6 +223,7 @@ class AgentState(TypedDict):
     ast_result: ASTInspectionResult | None
     lint_result: LintRunResult | None
     sandbox_result: SandboxExecutionResult | None
+    report_markdown: str
     retry_count: int
     max_retries: int
     audit_trail: list[str]
@@ -258,6 +269,7 @@ def create_initial_state(
         ast_result=None,
         lint_result=None,
         sandbox_result=None,
+        report_markdown="",
         retry_count=0,
         max_retries=max_retries,
         audit_trail=[f"Audit started for {source_file_path}"],
