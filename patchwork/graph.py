@@ -25,8 +25,8 @@ from patchwork.tools.sandbox import run_pytest_sandbox
 logger = logging.getLogger("patchwork.graph")
 
 DEFAULT_MODEL: Final[str] = "qwen2.5-coder:3b"
-DEFAULT_TEMPERATURE: Final[float] = 0.2
-DEFAULT_REPEAT_PENALTY: Final[float] = 1.15
+DEFAULT_TEMPERATURE: Final[float] = 0.0
+DEFAULT_REPEAT_PENALTY: Final[float] = 1.05
 DEFAULT_NUM_CTX: Final[int] = 8192
 DEFAULT_NUM_PREDICT: Final[int] = 1024
 DEFAULT_LLM_TIMEOUT_SEC: Final[float] = 45.0
