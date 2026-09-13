@@ -1,23 +1,16 @@
-"""
-patchwork.graph
-=================
-LangGraph workflow: static_analysis -> audit_and_generate -> execute_tests,
-then conditionally either compile_report -> END (tests passed, or retries
-exhausted) or reflect -> execute_tests again (tests failed, retries remain).
-
-The SLM call is injected as a dependency (build_structured_llm / passed
-into build_patchwork_graph) rather than instantiated at import time, so
-tests can swap in a mock and never touch a real Ollama server.
-"""
+"""patchwork.graph."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from typing import Final, Literal
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
+from typing import Any, Final, Literal, cast
 
 from langchain_core.exceptions import OutputParserException
-from langchain_core.runnables import Runnable
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -32,21 +25,71 @@ from patchwork.tools.sandbox import run_pytest_sandbox
 logger = logging.getLogger("patchwork.graph")
 
 DEFAULT_MODEL: Final[str] = "qwen2.5-coder:3b"
-DEFAULT_TEMPERATURE: Final[float] = (
-    0.1  # low temp -- 3B models hallucinate params at default 0.7-0.8
+DEFAULT_TEMPERATURE: Final[float] = 0.2
+DEFAULT_REPEAT_PENALTY: Final[float] = 1.15
+DEFAULT_NUM_CTX: Final[int] = 8192
+DEFAULT_NUM_PREDICT: Final[int] = 1024
+DEFAULT_LLM_TIMEOUT_SEC: Final[float] = 45.0
+
+SYSTEM_PROMPT: Final[str] = (
+    "You are an expert Python engineer and automated code repair agent.\n"
+    "Your job is to fix bugs accurately and concisely.\n\n"
+    "Strict output constraints:\n"
+    "1. NEVER output only a function header (e.g. `def foo():`). You MUST include the full indented function body.\n"
+    "2. Never generate repetitive, duplicate, or combinatorial test cases.\n"
+    "3. Limit `pytest_suite` to at most 2 targeted assertions (1 happy path, 1 boundary condition).\n"
+    "4. Keep `suggested_patch` strictly to the repaired function/class. Never include test functions inside `suggested_patch`.\n"
+    "5. Return clean, parseable structured data without extra commentary."
 )
-DEFAULT_NUM_CTX: Final[int] = (
-    8192  # Ollama defaults to 2048, which silently truncates source+traceback
+
+_llm_timeout_executor: Final[ThreadPoolExecutor] = ThreadPoolExecutor(
+    max_workers=1, thread_name_prefix="patchwork-llm-call"
 )
 
 
 def build_structured_llm(
     model: str = DEFAULT_MODEL,
     temperature: float = DEFAULT_TEMPERATURE,
+    repeat_penalty: float = DEFAULT_REPEAT_PENALTY,
     num_ctx: int = DEFAULT_NUM_CTX,
+    num_predict: int = DEFAULT_NUM_PREDICT,
 ) -> Runnable[str, CodeAuditOutput]:
-    llm = ChatOllama(model=model, temperature=temperature, num_ctx=num_ctx)
-    return llm.with_structured_output(CodeAuditOutput)  # type: ignore[return-value]
+    llm = ChatOllama(
+        model=model,
+        temperature=temperature,
+        repeat_penalty=repeat_penalty,
+        num_ctx=num_ctx,
+        num_predict=num_predict,
+    )
+
+    structured_llm = llm.with_structured_output(CodeAuditOutput)
+
+    def _format_messages(user_prompt: str) -> list[SystemMessage | HumanMessage]:
+        return [
+            SystemMessage(content=SYSTEM_PROMPT),
+            HumanMessage(content=user_prompt),
+        ]
+
+    chain = RunnableLambda(_format_messages) | structured_llm
+    return cast(Runnable[str, CodeAuditOutput], chain)
+
+
+class LlmCallTimeoutError(Exception):
+    """Raised when an LLM call exceeds the wall-clock timeout."""
+
+
+def _invoke_with_timeout(
+    structured_llm: Runnable[str, CodeAuditOutput],
+    prompt: str,
+    timeout_sec: float = DEFAULT_LLM_TIMEOUT_SEC,
+) -> CodeAuditOutput:
+    future = _llm_timeout_executor.submit(structured_llm.invoke, prompt)
+    try:
+        return future.result(timeout=timeout_sec)
+    except FutureTimeoutError as exc:
+        raise LlmCallTimeoutError(
+            f"structured_llm.invoke() exceeded {timeout_sec}s timeout"
+        ) from exc
 
 
 def _build_audit_prompt(state: AgentState) -> str:
@@ -57,38 +100,48 @@ def _build_audit_prompt(state: AgentState) -> str:
             for issue in state["lint_result"].issues
         )
 
-    syntax_note = (
-        "valid"
-        if state["ast_result"] is None or state["ast_result"].syntax_valid
-        else "INVALID SYNTAX"
-    )
-
     return (
-        "Analyze this Python code, identify bugs, propose a complete patched version, "
-        "and write a complete pytest suite covering the bugs you find.\n\n"
-        f"Syntax status: {syntax_note}\n"
+        "You are an expert Python bug fixer.\n"
         f"Linter issues: {lint_summary}\n\n"
-        f"Source code:\n```python\n{state['current_code']}\n```"
+        f"Source code:\n```python\n{state['current_code']}\n```\n\n"
+        "Instructions:\n"
+        "1. `suggested_patch`: Provide the FULL, complete Python code with body implementation.\n"
+        "   - NEVER output only the function signature line.\n"
+        "   - NEVER put test functions (`def test_...`) inside suggested_patch.\n"
+        "   - If the code is already correct, output the original code exactly.\n"
+        "2. `pytest_suite`: Provide EXACTLY 2 concise unit tests using pytest.\n"
+        "   - Test 1: Standard expected behavior.\n"
+        "   - Test 2: Edge/boundary case that exposes defects (e.g. NoneType, float precision, empty containers).\n"
+        "   - Do NOT output more than 2 test functions."
     )
 
 
 def _build_reflect_prompt(state: AgentState) -> str:
     sandbox = state["sandbox_result"]
-    # sandbox.stdout/stderr are already truncated to the last 20 lines /
-    # 1000 chars by sandbox.py -- no extra truncation needed here.
     failure_output = (
         sandbox.stderr
         if sandbox and sandbox.stderr
         else (sandbox.stdout if sandbox else "unknown failure")
     )
 
+    schema_warning = ""
+    if state.get("last_error"):
+        schema_warning = (
+            "CRITICAL PREVIOUS ERROR:\n"
+            f"{state['last_error']}\n"
+            "You MUST fix this formatting/implementation issue.\n\n"
+        )
+
     return (
-        "The previous patch and test suite failed execution. Analyze the "
-        "failure output below and fix BOTH the code and the tests so they "
-        "pass deterministically.\n\n"
-        f"Execution output:\n{failure_output}\n\n"
+        f"{schema_warning}"
+        "The previous patch failed verification.\n\n"
+        f"Failure Diagnostics:\n{failure_output}\n\n"
         f"Current code:\n```python\n{state['current_code']}\n```\n\n"
-        f"Current tests:\n```python\n{state['current_tests']}\n```"
+        "Instructions:\n"
+        "1. `suggested_patch`: Provide the FULL, repaired Python code with indented body.\n"
+        "   - NEVER output just the signature line.\n"
+        "   - Fix the root cause identified in the diagnostics.\n"
+        "2. `pytest_suite`: EXACTLY 2 minimal pytest assertions that verify this specific fix."
     )
 
 
@@ -97,12 +150,6 @@ def node_static_analysis(state: AgentState) -> AgentState:
     lint_result = run_ruff_linter(state["current_code"])
 
     trail_entry = f"Static analysis: syntax_valid={ast_result.syntax_valid}, {lint_result.issue_count_total} lint issues"
-    logger.info(
-        "node_static_analysis_complete",
-        extra={"event": "node_static_analysis_complete"},
-    )
-
-    # never mutate the incoming state dict -- return a new one
     return {
         **state,
         "ast_result": ast_result,
@@ -118,30 +165,31 @@ def make_audit_and_generate_node(
         prompt = _build_audit_prompt(state)
 
         try:
-            result = structured_llm.invoke(prompt)
-        except (ValidationError, OutputParserException) as exc:
-            # SLM returned something that didn't fit CodeAuditOutput (truncated
-            # JSON, markdown-wrapped garbage that survived stripping, prose
-            # instead of code, etc). Don't crash the graph -- leave
-            # current_code/current_tests as-is and let execute_tests report
-            # the failure downstream.
-            logger.warning(
-                "audit_generation_failed",
-                extra={"event": "audit_generation_failed", "error": str(exc)},
-            )
+            result = _invoke_with_timeout(structured_llm, prompt)
+        except (ValidationError, OutputParserException, LlmCallTimeoutError) as exc:
+            err_msg = str(exc)
+            logger.warning("audit_generation_failed", extra={"error": err_msg})
             return {
                 **state,
+                "last_error": f"Schema parsing failed: {err_msg}",
                 "audit_trail": [
                     *state["audit_trail"],
-                    f"Audit generation failed schema validation: {exc}",
+                    f"Audit generation failed schema validation: {err_msg}",
                 ],
             }
+
+        patch = (
+            state["original_code"]
+            if result.suggested_patch == "PASS_UNCHANGED"
+            else result.suggested_patch
+        )
 
         trail_entry = f"Generated patch and tests. Bugs identified: {result.identified_bugs or 'none reported'}"
         return {
             **state,
-            "current_code": result.suggested_patch,
+            "current_code": patch,
             "current_tests": result.pytest_suite,
+            "last_error": None,
             "audit_trail": [*state["audit_trail"], trail_entry],
         }
 
@@ -156,30 +204,33 @@ def make_reflect_and_heal_node(
         prompt = _build_reflect_prompt(state)
 
         try:
-            result = structured_llm.invoke(prompt)
-        except (ValidationError, OutputParserException) as exc:
-            # same failure mode as audit_and_generate -- don't crash, don't
-            # touch current_code/current_tests, just burn the retry and
-            # let route_after_execution decide whether to try again.
-            logger.warning(
-                "reflection_failed",
-                extra={"event": "reflection_failed", "error": str(exc)},
-            )
+            result = _invoke_with_timeout(structured_llm, prompt)
+        except (ValidationError, OutputParserException, LlmCallTimeoutError) as exc:
+            err_msg = str(exc)
+            logger.warning("reflection_failed", extra={"error": err_msg})
             return {
                 **state,
                 "retry_count": next_retry_count,
+                "last_error": f"Schema parsing failed: {err_msg}",
                 "audit_trail": [
                     *state["audit_trail"],
-                    f"Reflection attempt {next_retry_count} failed schema validation: {exc}",
+                    f"Reflection attempt {next_retry_count} failed schema validation: {err_msg}",
                 ],
             }
+
+        patch = (
+            state["current_code"]
+            if result.suggested_patch == "PASS_UNCHANGED"
+            else result.suggested_patch
+        )
 
         trail_entry = f"Reflection attempt {next_retry_count}: patched code and tests based on failure output"
         return {
             **state,
-            "current_code": result.suggested_patch,
-            "current_tests": result.pytest_suite,
+            "current_code": patch,
+            "current_tests": result.pytest_suite or state["current_tests"],
             "retry_count": next_retry_count,
+            "last_error": None,
             "audit_trail": [*state["audit_trail"], trail_entry],
         }
 
@@ -187,12 +238,17 @@ def make_reflect_and_heal_node(
 
 
 def node_execute_tests(state: AgentState) -> AgentState:
-    sandbox_result = run_pytest_sandbox(state["current_code"], state["current_tests"])
-    trail_entry = f"Test execution: passed={sandbox_result.passed}, timed_out={sandbox_result.timed_out}"
-    logger.info(
-        "node_execute_tests_complete", extra={"event": "node_execute_tests_complete"}
-    )
+    if not state["current_tests"].strip():
+        trail_entry = "Test execution: skipped (no tests provided)"
+        return {
+            **state,
+            "audit_trail": [*state["audit_trail"], trail_entry],
+        }
 
+    # Execute tests against the patched code
+    sandbox_result = run_pytest_sandbox(state["current_code"], state["current_tests"])
+
+    trail_entry = f"Test execution: passed={sandbox_result.passed}, timed_out={sandbox_result.timed_out}"
     return {
         **state,
         "sandbox_result": sandbox_result,
@@ -203,10 +259,6 @@ def node_execute_tests(state: AgentState) -> AgentState:
 def node_compile_report(state: AgentState) -> AgentState:
     report = build_audit_report(state)
     trail_entry = "Compiled final audit report"
-    logger.info(
-        "node_compile_report_complete",
-        extra={"event": "node_compile_report_complete"},
-    )
     return {
         **state,
         "report_markdown": report,
@@ -231,17 +283,14 @@ def build_patchwork_graph(
     )
 
     workflow.add_node("static_analysis", node_static_analysis)
-    # langgraph's add_node overloads misresolve on closures (vs. plain
-    # functions like node_static_analysis above) -- verified correct at
-    # runtime via test_graph.py, this is a stub limitation, not a real bug.
     workflow.add_node(
         "audit_and_generate",
-        make_audit_and_generate_node(structured_llm),  # type: ignore[arg-type]
+        cast(Any, make_audit_and_generate_node(structured_llm)),
     )
     workflow.add_node("execute_tests", node_execute_tests)
     workflow.add_node(
         "reflect",
-        make_reflect_and_heal_node(structured_llm),  # type: ignore[arg-type]
+        cast(Any, make_reflect_and_heal_node(structured_llm)),
     )
     workflow.add_node("compile_report", node_compile_report)
 
