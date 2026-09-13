@@ -89,8 +89,8 @@ def summary() -> EvaluationSummary:
 
 class TestEvaluateAll:
     def test_runs_all_defects_in_manifest(self, summary: EvaluationSummary) -> None:
-        assert summary.total_defects == 25
-        assert len(summary.results) == 25
+        assert summary.total_defects == 100
+        assert len(summary.results) == 100
 
     def test_pass_at_1_counts_only_zero_retry_passes(
         self, summary: EvaluationSummary
