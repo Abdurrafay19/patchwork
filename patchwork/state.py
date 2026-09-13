@@ -1,18 +1,4 @@
-"""
-patchwork.state
-=================
-Shared type contracts for the Patchwork agent: the Pydantic schema the
-SLM's structured output must conform to, and the LangGraph `AgentState`
-that flows between nodes.
-
-This module has no LLM calls and no subprocess calls -- it's pure data
-modeling, which is why it's built before `graph.py`. Per
-`critical_engineering_and_execution_advice`, LangGraph nodes must treat
-state as immutable (return a new dict with updated keys, never mutate
-the input dict in place); this module only defines the *shape* of that
-state, it does not enforce immutability itself -- that discipline lives
-in the node implementations in `graph.py`.
-"""
+"""patchwork.state."""
 
 from __future__ import annotations
 
@@ -28,117 +14,130 @@ from patchwork.tools.sandbox import SandboxExecutionResult
 
 DEFAULT_MAX_RETRIES: Final[int] = 3
 
-_MARKDOWN_FENCE_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"^\s*```(?:python)?\s*\n?(.*?)\n?```\s*$", re.DOTALL
-)
-
-# Checklist item 4.2 ("Trivial Test Suites"): a generated suite whose only
-# assertion is a tautology. Not exhaustive -- a suite could be trivial in
-# other ways -- but this catches the specific pattern the checklist calls
-# out, which is the one an SLM under context pressure actually produces.
-_TRIVIAL_TEST_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"def\s+test_\w+\s*\([^)]*\)\s*:\s*\n\s*assert\s+True\s*$", re.MULTILINE
+NO_CHANGE_PHRASES: Final[tuple[str, ...]] = (
+    "no changes needed",
+    "already correct",
+    "no bugs found",
+    "no modifications needed",
+    "code is correct",
 )
 
 
-def _strip_markdown_fences(value: str) -> str:
-    """Strips a single wrapping ```/```python markdown code fence.
+def _extract_clean_code(value: str) -> str:
+    """Extracts Python code, handling unclosed markdown fences and escaped newlines."""
+    if not isinstance(value, str):
+        return value
 
-    Addresses checklist item 1.4 ("Markdown Contamination"): SLMs
-    frequently wrap structured-output string fields in code fences even
-    when explicitly instructed to return raw code, which would otherwise
-    corrupt the patch/test content with non-Python fence lines.
+    val = value.strip()
 
-    Args:
-        value: The raw string as returned by the SLM.
+    # If the model emitted literal escaped newlines ("\\n") instead of real newlines
+    if "\\n" in val and "\n" not in val:
+        val = val.encode("utf-8").decode("unicode_escape")
 
-    Returns:
-        The value with a single wrapping fence removed, if present.
-        Text that isn't fenced is returned unchanged. Only strips one
-        wrapping fence -- it does not attempt to repair fences embedded
-        mid-string.
-    """
-    match = _MARKDOWN_FENCE_PATTERN.match(value)
-    if match:
-        return match.group(1)
-    return value
+    # 1. Closed code block
+    fence_match = re.search(r"```(?:python)?\s*\n?(.*?)\n?```", val, re.DOTALL)
+    if fence_match:
+        val = fence_match.group(1).strip()
+    elif "```" in val:
+        # 2. Truncated opening code block (no closing fence)
+        val = re.sub(r"^.*?```(?:python)?\s*\n?", "", val, flags=re.DOTALL)
+        val = re.sub(r"\n?```.*?$", "", val, flags=re.DOTALL)
+        val = val.strip()
+
+    # Clean stray trailing unescaped quotes or line continuations at EOF
+    lines = val.splitlines()
+    if lines and lines[-1].strip() in ("'", '"', "\\", "'''", '"""'):
+        lines.pop()
+        val = "\n".join(lines).strip()
+
+    return val
 
 
-def _contains_test_function(code: str) -> bool:
-    # detects checklist-adjacent contamination: SLM bleeding test functions
-    # into suggested_patch instead of keeping them in pytest_suite. Uses
-    # ast, not regex, since a substring match on "def test_" would also
-    # false-positive on a docstring or comment mentioning test functions.
+def _strip_test_functions_from_patch(code: str) -> str:
+    """Removes def test_* functions that bled into the patch implementation."""
+    lines = code.splitlines()
+    non_test_lines: list[str] = []
+    skipping_test = False
+
+    for line in lines:
+        if re.match(r"^\s*def\s+test_\w+", line):
+            skipping_test = True
+            continue
+        if skipping_test:
+            if line.startswith((" ", "\t")) or not line.strip():
+                continue
+            skipping_test = False
+        non_test_lines.append(line)
+
+    sanitized = "\n".join(non_test_lines).strip()
+
     try:
-        tree = ast.parse(code)
+        tree = ast.parse(sanitized)
     except (SyntaxError, ValueError):
-        return False  # not this check's job to catch syntax errors
+        return sanitized
 
-    return any(
-        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and node.name.startswith("test_")
-        for node in ast.walk(tree)
-    )
+    lines_to_remove: set[int] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name.startswith("test_")
+            and hasattr(node, "lineno")
+        ):
+            end_lineno = getattr(node, "end_lineno", node.lineno)
+            for line_idx in range(node.lineno, end_lineno + 1):
+                lines_to_remove.add(line_idx)
+
+    return "\n".join(
+        line
+        for idx, line in enumerate(sanitized.splitlines(), start=1)
+        if idx not in lines_to_remove
+    ).strip()
 
 
 class CodeAuditOutput(BaseModel):
-    """Structured output contract the SLM must satisfy for a single
-    audit-and-generate or reflect-and-heal turn.
+    """Structured output contract the SLM must satisfy."""
 
-    Attributes:
-        identified_bugs: Human-readable list of bugs, logic errors, or
-            missing edge cases the SLM found. May be empty for code the
-            SLM judges to have no issues -- an empty list is a valid
-            audit result, not a schema violation.
-        suggested_patch: Complete revised Python source for the target
-            file. Markdown fences are stripped automatically; the field
-            must be non-empty after stripping.
-        pytest_suite: Complete pytest test suite covering the identified
-            edge cases. Markdown fences are stripped automatically; the
-            field must be non-empty after stripping.
-    """
-
-    identified_bugs: list[str] = Field(default_factory=list)
-    suggested_patch: str = Field(min_length=1)
-    pytest_suite: str = Field(min_length=1)
+    identified_bugs: list[str] = Field(
+        default_factory=list,
+        description="List of bugs or edge cases identified.",
+    )
+    suggested_patch: str = Field(
+        min_length=1,
+        description="Pure Python code for the source module. NEVER include test functions here.",
+    )
+    pytest_suite: str = Field(
+        default="",
+        description="Pure pytest test code starting with import pytest.",
+    )
 
     @field_validator("suggested_patch", "pytest_suite", mode="before")
     @classmethod
     def _clean_code_field(cls, value: str) -> str:
-        """Strips markdown fences and surrounding whitespace before the
-        `min_length=1` constraint is checked, so a fenced-but-otherwise-
-        empty response (```` ```python\\n``` ````) correctly fails
-        validation instead of passing with fence characters as content.
-        """
-        if not isinstance(value, str):
+        return _extract_clean_code(value)
+
+    @field_validator("suggested_patch", mode="before")
+    @classmethod
+    def _sanitize_patch(cls, value: str) -> str:
+        cleaned = _extract_clean_code(value)
+        lower_val = cleaned.lower()
+        if any(phrase in lower_val for phrase in NO_CHANGE_PHRASES):
+            return "PASS_UNCHANGED"
+        return _strip_test_functions_from_patch(cleaned)
+
+    @field_validator("suggested_patch")
+    @classmethod
+    def _verify_python_syntax(cls, value: str) -> str:
+        if value == "PASS_UNCHANGED":
             return value
-        return _strip_markdown_fences(value).strip()
 
-    @field_validator("suggested_patch")
-    @classmethod
-    def _reject_test_contaminated_patch(cls, value: str) -> str:
-        # real bug caught via manual_reflection_test.py: a reflection
-        # attempt returned test_* functions inside suggested_patch, mixed
-        # with the actual source. Rejecting here routes it through the
-        # same schema-validation-failure path graph.py already handles
-        # (burn a retry, don't corrupt current_code) instead of letting
-        # contaminated code silently become the new "fixed" file.
-        if _contains_test_function(value):
+        # Explicit check for one-line function signature stubs
+        non_empty_lines = [line.strip() for line in value.splitlines() if line.strip()]
+        if len(non_empty_lines) == 1 and non_empty_lines[0].endswith(":"):
             raise ValueError(
-                "suggested_patch contains test_* function(s) -- test code bled into the source patch"
+                "suggested_patch contains only a function signature header without an indented body. "
+                "You must output the entire function body."
             )
-        return value
 
-    @field_validator("suggested_patch")
-    @classmethod
-    def _reject_unparseable_patch(cls, value: str) -> str:
-        # real failure caught via cli.py manual testing: the SLM returned
-        # a plain-English description instead of code. min_length=1 and
-        # the fence-stripping above both let this through, since prose
-        # is non-empty, valid text -- only an actual parse attempt catches
-        # it. Rejecting here (rather than letting it fall through to
-        # node_execute_tests) turns a confusing "tests failed" into an
-        # honest "generation failed schema validation".
         try:
             ast.parse(value)
         except SyntaxError as exc:
@@ -148,8 +147,6 @@ class CodeAuditOutput(BaseModel):
     @field_validator("identified_bugs", mode="before")
     @classmethod
     def _drop_blank_bug_entries(cls, value: object) -> object:
-        """Filters out whitespace-only entries the SLM sometimes emits
-        as list padding, without rejecting a genuinely empty list."""
         if not isinstance(value, list):
             return value
         return [
@@ -157,24 +154,13 @@ class CodeAuditOutput(BaseModel):
         ]
 
 
+_TRIVIAL_TEST_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"def\s+test_\w+\s*\([^)]*\)\s*:\s*\n\s*assert\s+True\s*$", re.MULTILINE
+)
+
+
 def looks_like_trivial_test_suite(pytest_suite: str) -> bool:
-    """Flags the specific trivial-test pattern from checklist item 4.2:
-    a test function whose entire body is `assert True`.
-
-    This is a heuristic for the reflect/route logic to consult, not a
-    validator on `CodeAuditOutput` -- rejecting outright at the schema
-    level would also reject a legitimately trivial-but-intentional smoke
-    test, which isn't this module's call to make.
-
-    Args:
-        pytest_suite: The full pytest suite source to inspect.
-
-    Returns:
-        True if every `test_*` function in the suite matches the
-        `assert True`-only body pattern. A suite with zero test
-        functions is also considered trivial (nothing is actually being
-        verified).
-    """
+    """Checks if the test suite contains no tests or only trivial assertions."""
     test_functions = re.findall(r"def\s+(test_\w+)\s*\(", pytest_suite)
     if not test_functions:
         return True
@@ -183,39 +169,6 @@ def looks_like_trivial_test_suite(pytest_suite: str) -> bool:
 
 
 class AgentState(TypedDict):
-    """LangGraph state passed between nodes in the Patchwork audit graph.
-
-    Deliberately embeds the strictly-typed result models from
-    `patchwork.tools` (`ASTInspectionResult`, `LintRunResult`,
-    `SandboxExecutionResult`) rather than flattening their fields into
-    loose strings/dicts here -- the tools already define the correct
-    shape for their own output, and duplicating that shape in a second
-    place would just create a second thing to keep in sync.
-
-    Attributes:
-        source_file_path: Path to the original file the user submitted.
-        original_code: The unmodified source, kept for diffing and for
-            the final report -- never overwritten during the run.
-        current_code: The latest patched version of the source. This is
-            what gets linted, tested, and (on failure) re-patched.
-        current_tests: The latest generated pytest suite.
-        ast_result: Most recent AST inspection of `current_code`, or
-            `None` before the first analysis pass has run.
-        lint_result: Most recent lint run against `current_code`, or
-            `None` before the first analysis pass has run.
-        sandbox_result: Most recent sandboxed test execution, or `None`
-            before the first execute pass has run.
-        report_markdown: Final Markdown audit report, populated by
-            `node_compile_report` on the terminal "end" path. Empty
-            string before that node has run.
-        retry_count: Number of reflect-and-heal cycles completed so far.
-        max_retries: Hard ceiling on `retry_count` before the graph
-            routes to a terminal "fail gracefully" edge instead of
-            looping again.
-        audit_trail: Ordered, human-readable log of what happened at
-            each node, for the final Markdown report -- append-only.
-    """
-
     source_file_path: str
     original_code: str
     current_code: str
@@ -227,6 +180,7 @@ class AgentState(TypedDict):
     retry_count: int
     max_retries: int
     audit_trail: list[str]
+    last_error: str | None  # Tracks schema validation or verification failures
 
 
 def create_initial_state(
@@ -234,30 +188,6 @@ def create_initial_state(
     original_code: str,
     max_retries: int = DEFAULT_MAX_RETRIES,
 ) -> AgentState:
-    """Builds the starting `AgentState` for a fresh audit run.
-
-    Centralizing construction here means every entry point (CLI,
-    benchmark harness, future API) produces a state with identical
-    defaults, rather than each caller hand-assembling the dict and
-    risking a missing or misspelled key that `TypedDict` won't catch
-    at runtime.
-
-    Args:
-        source_file_path: Path to the file being audited, for the audit
-            trail and final report. Not read by this function -- the
-            caller is responsible for having already loaded `original_code`.
-        original_code: The full, unmodified source of the target file.
-        max_retries: Reflect-and-heal retry ceiling for this run. Must be
-            non-negative.
-
-    Returns:
-        A fresh `AgentState` with `current_code` seeded from
-        `original_code`, no tests generated yet, zero retries used, and
-        an audit trail containing a single "run started" entry.
-
-    Raises:
-        ValueError: If `max_retries` is negative.
-    """
     if max_retries < 0:
         raise ValueError(f"max_retries must be non-negative, got {max_retries!r}")
 
@@ -273,4 +203,5 @@ def create_initial_state(
         retry_count=0,
         max_retries=max_retries,
         audit_trail=[f"Audit started for {source_file_path}"],
+        last_error=None,
     )
