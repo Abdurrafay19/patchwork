@@ -10,15 +10,20 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from langchain_core.exceptions import OutputParserException
 from pydantic import ValidationError
 
 from patchwork.graph import (
     DEFAULT_MODEL,
     DEFAULT_NUM_CTX,
+    DEFAULT_NUM_PREDICT,
+    DEFAULT_REPEAT_PENALTY,
     DEFAULT_TEMPERATURE,
+    LlmCallTimeoutError,
     _build_audit_prompt,
     _build_reflect_prompt,
+    _invoke_with_timeout,
     build_patchwork_graph,
     build_structured_llm,
     make_audit_and_generate_node,
@@ -37,12 +42,7 @@ def _mock_llm(result: CodeAuditOutput) -> MagicMock:
 
 
 class TestBuildStructuredLlm:
-    """Mocks ChatOllama itself -- never opens a real connection to Ollama.
-
-    Covers patchwork.graph's only two lines that no other test in this
-    file exercises: build_structured_llm never gets called elsewhere,
-    since every other test injects a MagicMock as structured_llm directly.
-    """
+    """Mocks ChatOllama itself -- never opens a real connection to Ollama."""
 
     @patch("patchwork.graph.ChatOllama")
     def test_builds_with_default_params(self, mock_chat_ollama: MagicMock) -> None:
@@ -54,7 +54,9 @@ class TestBuildStructuredLlm:
         mock_chat_ollama.assert_called_once_with(
             model=DEFAULT_MODEL,
             temperature=DEFAULT_TEMPERATURE,
+            repeat_penalty=DEFAULT_REPEAT_PENALTY,
             num_ctx=DEFAULT_NUM_CTX,
+            num_predict=DEFAULT_NUM_PREDICT,
         )
         mock_llm_instance.with_structured_output.assert_called_once_with(
             CodeAuditOutput
@@ -65,10 +67,20 @@ class TestBuildStructuredLlm:
         mock_llm_instance = MagicMock()
         mock_chat_ollama.return_value = mock_llm_instance
 
-        build_structured_llm(model="custom:model", temperature=0.5, num_ctx=4096)
+        build_structured_llm(
+            model="custom:model",
+            temperature=0.5,
+            repeat_penalty=0.9,
+            num_ctx=4096,
+            num_predict=1024,
+        )
 
         mock_chat_ollama.assert_called_once_with(
-            model="custom:model", temperature=0.5, num_ctx=4096
+            model="custom:model",
+            temperature=0.5,
+            repeat_penalty=0.9,
+            num_ctx=4096,
+            num_predict=1024,
         )
 
 
@@ -90,14 +102,17 @@ class TestBuildAuditPrompt:
         prompt = _build_audit_prompt(state)
         assert "F401" in prompt
 
-    def test_reports_invalid_syntax_note(self) -> None:
-        # covers the "else" branch of syntax_note in _build_audit_prompt --
-        # every other test here feeds valid syntax through
-        # node_static_analysis, so this branch was previously unexercised
+    def test_syntax_errors_surface_via_linter_not_a_separate_note(self) -> None:
+        # _build_audit_prompt no longer computes its own "Syntax status:"
+        # line -- ruff's own invalid-syntax diagnostic (surfaced through
+        # lint_result.issues, same as any other lint finding) is now the
+        # only signal the prompt carries for unparseable source. Covers
+        # what used to be the "INVALID SYNTAX" branch under the new,
+        # simplified prompt.
         state = create_initial_state("target.py", "def broken(:\n    pass\n")
         state = node_static_analysis(state)
         prompt = _build_audit_prompt(state)
-        assert "INVALID SYNTAX" in prompt
+        assert "invalid-syntax" in prompt
 
 
 class TestNodeStaticAnalysis:
@@ -171,6 +186,51 @@ class TestAuditAndGenerateNode:
 
         assert state["current_code"] == "x = 1"  # original state dict untouched
 
+    def test_node_handles_llm_call_timeout_without_crashing(self) -> None:
+        # dependency-injected exception, not a real sleep/timeout race --
+        # avoids the earlier flaw of trying to patch DEFAULT_LLM_TIMEOUT_SEC
+        # after it was already bound as a function default argument
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = LlmCallTimeoutError("simulated timeout")
+        node = make_audit_and_generate_node(mock_llm)
+        state = create_initial_state("target.py", "x = 1")
+
+        new_state = node(state)  # must not raise
+
+        assert new_state["current_code"] == "x = 1"
+        assert "failed" in new_state["audit_trail"][-1].lower()
+
+
+class TestInvokeWithTimeout:
+    def test_slow_call_raises_llm_call_timeout_error(self) -> None:
+        import time
+
+        def slow_invoke(prompt: str) -> CodeAuditOutput:
+            time.sleep(0.5)
+            return CodeAuditOutput(
+                identified_bugs=[],
+                suggested_patch="x = 1",
+                pytest_suite="def test_x():\n    assert True",
+            )
+
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = slow_invoke
+
+        with pytest.raises(LlmCallTimeoutError):
+            _invoke_with_timeout(mock_llm, "some prompt", timeout_sec=0.1)
+
+    def test_fast_call_returns_normally(self) -> None:
+        mock_result = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="x = 1",
+            pytest_suite="def test_x():\n    assert True",
+        )
+        mock_llm = _mock_llm(mock_result)
+
+        result = _invoke_with_timeout(mock_llm, "some prompt", timeout_sec=5.0)
+
+        assert result == mock_result
+
 
 class TestNodeExecuteTests:
     def test_passing_generated_tests_report_passed(self) -> None:
@@ -192,6 +252,19 @@ class TestNodeExecuteTests:
         sandbox_result = new_state["sandbox_result"]
         assert sandbox_result is not None
         assert sandbox_result.passed is False
+
+    def test_blank_tests_are_skipped_not_executed(self) -> None:
+        # new behavior: pytest_suite is no longer required to be non-empty
+        # (see state.py), so node_execute_tests must handle "no tests
+        # provided" as a distinct, non-crashing outcome rather than
+        # running an empty suite through the sandbox
+        state = create_initial_state("target.py", "x = 1")
+        state["current_tests"] = "   "
+
+        new_state = node_execute_tests(state)
+
+        assert new_state["sandbox_result"] is None
+        assert "skipped" in new_state["audit_trail"][-1].lower()
 
 
 class TestBuildPatchworkGraphIntegration:
@@ -216,9 +289,14 @@ class TestBuildPatchworkGraphIntegration:
         assert final["current_code"] == mock_result.suggested_patch
         assert (
             len(final["audit_trail"]) == 5
-        )  # start + static_analysis + generate + execute
+        )  # start + static_analysis + generate + execute + compile_report
 
     def test_full_pass_with_schema_failure_still_completes(self) -> None:
+        # updated: on schema failure, current_tests stays "" (unchanged
+        # from create_initial_state's default), so node_execute_tests now
+        # takes the skip branch instead of running the sandbox --
+        # sandbox_result correctly stays None, it does NOT get populated
+        # as it did under the old always-run-the-sandbox behavior
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = OutputParserException("truncated json")
         graph = build_patchwork_graph(mock_llm)
@@ -227,19 +305,26 @@ class TestBuildPatchworkGraphIntegration:
         final = graph.invoke(initial)  # must not raise, graph still reaches END
 
         assert final["current_code"] == "x = 1"
-        assert final["sandbox_result"] is not None  # execute_tests still ran
+        assert final["sandbox_result"] is None
+        assert "skipped" in final["audit_trail"][-1].lower() or any(
+            "skipped" in entry.lower() for entry in final["audit_trail"]
+        )
 
 
 class TestBuildReflectPrompt:
-    def test_prefers_stderr_over_stdout(self) -> None:
+    def test_includes_diagnostics_and_current_code(self) -> None:
+        # updated: the reflect prompt no longer echoes current_tests back
+        # to the model (see graph.py) -- only current_code and the
+        # failure diagnostics are included, so this no longer asserts on
+        # a "Current tests:" section that doesn't exist anymore
         state = create_initial_state("target.py", "def f():\n    return 1\n")
         state["current_tests"] = "def test_f():\n    assert f() == 2\n"
         state = node_execute_tests(state)  # real sandbox run -> real failure output
 
         prompt = _build_reflect_prompt(state)
 
+        assert "Failure Diagnostics:" in prompt
         assert "Current code:" in prompt
-        assert "Current tests:" in prompt
         assert "def f():" in prompt
 
     def test_handles_missing_sandbox_result_gracefully(self) -> None:
