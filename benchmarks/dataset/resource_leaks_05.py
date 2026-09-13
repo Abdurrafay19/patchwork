@@ -1,5 +1,3 @@
-"""Reads and parses a JSON file, returning the resulting object."""
-
 import json
 
 
