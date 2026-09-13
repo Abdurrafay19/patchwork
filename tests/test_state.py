@@ -56,18 +56,25 @@ class TestCodeAuditOutputMarkdownStripping:
 
 
 class TestCodeAuditOutputTestContamination:
-    def test_test_function_in_patch_rejected(self) -> None:
-        # real failure mode observed in a live reflection run: the patch
-        # field contained the fixed function AND a test_* function
+    def test_test_function_in_patch_is_stripped_not_rejected(self) -> None:
+        # behavior change: this used to raise ValidationError (see git
+        # history), forcing the whole attempt to be discarded and burning
+        # a retry. Now _strip_test_functions_from_patch repairs it inline
+        # -- the real function survives, the leaked test_* function is
+        # removed, and the patch is accepted. _verify_python_syntax still
+        # runs afterward, so if stripping ever produced broken syntax,
+        # that would still be caught and rejected -- this only covers the
+        # common case where stripping succeeds cleanly.
         contaminated = (
             "def f():\n    return 1\n\n\ndef test_f():\n    assert f() == 1\n"
         )
-        with pytest.raises(ValidationError):
-            CodeAuditOutput(
-                identified_bugs=[],
-                suggested_patch=contaminated,
-                pytest_suite="def test_x():\n    assert True",
-            )
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch=contaminated,
+            pytest_suite="def test_x():\n    assert True",
+        )
+        assert "def test_" not in output.suggested_patch
+        assert "def f():" in output.suggested_patch
 
     def test_clean_patch_with_no_test_functions_accepted(self) -> None:
         output = CodeAuditOutput(
@@ -77,9 +84,9 @@ class TestCodeAuditOutputTestContamination:
         )
         assert "def test_" not in output.suggested_patch
 
-    def test_pytest_suite_field_itself_is_not_checked_for_test_functions(self) -> None:
+    def test_pytest_suite_field_itself_is_not_stripped_of_test_functions(self) -> None:
         # pytest_suite is SUPPOSED to contain test_* functions -- only
-        # suggested_patch is checked
+        # suggested_patch goes through _strip_test_functions_from_patch
         output = CodeAuditOutput(
             identified_bugs=[],
             suggested_patch="def f():\n    return 1\n",
@@ -87,10 +94,22 @@ class TestCodeAuditOutputTestContamination:
         )
         assert "def test_f" in output.pytest_suite
 
+    def test_stripping_a_syntactically_broken_patch_does_not_crash(self) -> None:
+        # _strip_test_functions_from_patch's own ast.parse can fail on
+        # code that's simultaneously contaminated AND malformed -- it
+        # must return the code unchanged rather than raising, leaving
+        # _verify_python_syntax (which runs after) to correctly reject it
+        with pytest.raises(ValidationError):
+            CodeAuditOutput(
+                identified_bugs=[],
+                suggested_patch="def broken(:\n    def test_x(:\n    pass",
+                pytest_suite="def test_x():\n    assert True",
+            )
+
 
 class TestCodeAuditOutputSyntaxValidation:
     def test_unparseable_patch_is_rejected(self) -> None:
-        # covers _reject_unparseable_patch directly: a patch that isn't
+        # covers _verify_python_syntax directly: a patch that isn't
         # valid Python must fail schema validation here, not silently
         # pass through and only surface as a confusing sandbox failure
         # three steps downstream (see manual CLI run against
@@ -128,12 +147,40 @@ class TestCodeAuditOutputSyntaxValidation:
         )
         assert output.suggested_patch == "def f():\n    return 1"
 
+    def test_one_line_signature_stub_is_rejected(self) -> None:
+        # new validator: a patch that's only a function header with no
+        # indented body (e.g. "def f():") is syntactically valid Python
+        # on its own only if it has *some* body, so this specifically
+        # catches the "signature with nothing after it" truncation case
+        with pytest.raises(ValidationError):
+            CodeAuditOutput(
+                identified_bugs=[],
+                suggested_patch="def f():",
+                pytest_suite="def test_f():\n    assert True",
+            )
+
+    def test_pass_unchanged_sentinel_bypasses_syntax_check(self) -> None:
+        # new "no changes needed" pathway: if the model's raw output
+        # contains one of NO_CHANGE_PHRASES, _sanitize_patch rewrites
+        # suggested_patch to the literal sentinel "PASS_UNCHANGED" before
+        # _verify_python_syntax ever runs -- that sentinel is obviously
+        # not valid Python on its own, so the syntax check must special-
+        # case and allow it through rather than rejecting it
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch="The code is correct and needs no changes.",
+            pytest_suite="def test_f():\n    assert True",
+        )
+        assert output.suggested_patch == "PASS_UNCHANGED"
+
 
 class TestCodeAuditOutputEmptyFieldRejection:
     def test_empty_patch_after_fence_stripping_raises(self) -> None:
         # Covers checklist item 1.4: a response that is *only* a fence
         # with nothing inside must not pass validation as if it were
-        # real code.
+        # real code. suggested_patch still enforces min_length=1 --
+        # only pytest_suite's constraint was relaxed (see the
+        # TestCodeAuditOutputOptionalTestSuite class below).
         with pytest.raises(ValidationError):
             CodeAuditOutput(
                 identified_bugs=[],
@@ -149,11 +196,24 @@ class TestCodeAuditOutputEmptyFieldRejection:
                 pytest_suite="def test_x():\n    assert True",
             )
 
-    def test_empty_pytest_suite_raises(self) -> None:
-        with pytest.raises(ValidationError):
-            CodeAuditOutput(
-                identified_bugs=[], suggested_patch="x = 1", pytest_suite=""
-            )
+
+class TestCodeAuditOutputOptionalTestSuite:
+    def test_empty_pytest_suite_is_now_accepted(self) -> None:
+        # behavior change: pytest_suite lost its min_length=1 constraint
+        # and now defaults to "". An empty suite is a legitimate "no
+        # tests provided" outcome (e.g. paired with the PASS_UNCHANGED
+        # patch sentinel), which graph.py's node_execute_tests handles
+        # by skipping sandbox execution rather than running against an
+        # empty suite -- see test_graph.py's
+        # test_blank_tests_are_skipped_not_executed for that side.
+        output = CodeAuditOutput(
+            identified_bugs=[], suggested_patch="x = 1", pytest_suite=""
+        )
+        assert output.pytest_suite == ""
+
+    def test_pytest_suite_field_omitted_entirely_defaults_to_empty(self) -> None:
+        output = CodeAuditOutput(identified_bugs=[], suggested_patch="x = 1")
+        assert output.pytest_suite == ""
 
 
 class TestCodeAuditOutputIdentifiedBugs:
@@ -217,6 +277,7 @@ class TestCreateInitialState:
         assert state["report_markdown"] == ""
         assert state["retry_count"] == 0
         assert state["max_retries"] == DEFAULT_MAX_RETRIES
+        assert state["last_error"] is None
         assert len(state["audit_trail"]) == 1
 
     def test_custom_max_retries_respected(self) -> None:
