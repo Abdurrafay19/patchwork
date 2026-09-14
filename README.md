@@ -59,7 +59,7 @@ This runs all 100 defects through the full agent graph, grades each result again
 Run against `qwen2.5-coder:3b`, temperature 0.0, repeat penalty 1.05, on an RTX 3050 Laptop GPU (4GB VRAM), plugged into AC power.
 
 | Metric | Value |
-|---|---|
+| --- | --- |
 | Total defects | 100 |
 | Categories | 21 |
 | Pass@1 (fixed on first attempt) | 38% |
@@ -80,7 +80,7 @@ Six categories hit 0% across every defect and every retry: float precision compa
 42 defects failed. Splitting them by whether the model's own self-written tests ever passed:
 
 | Failure type | Count | Share of failures |
-|---|---|---|
+| --- | --- | --- |
 | Model's own tests passed, oracle disagreed | 28 | 67% |
 | Model's own tests never passed, even after 3 retries | 14 | 33% |
 
@@ -109,7 +109,7 @@ A handful of specific failure modes showed up during development and are handled
 
 ## Project layout
 
-```
+``` text
 patchwork/
 ├── cli.py                  # audit a single file from the command line
 ├── graph.py                 # the LangGraph state machine
