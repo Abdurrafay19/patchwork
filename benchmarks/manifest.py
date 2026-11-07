@@ -1,7 +1,7 @@
 """
 benchmarks.manifest
 =====================
-Schema for the 25-defect benchmark dataset. Each defect has a buggy
+Schema for the 100-defect benchmark dataset. Each defect has a buggy
 source file AND a separate oracle test file the agent never sees --
 evaluate.py grades against the oracle, not the SLM's own self-written
 tests, since a model that writes weak tests would otherwise score as

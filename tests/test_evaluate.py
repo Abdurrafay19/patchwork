@@ -8,7 +8,7 @@ since this module's entire job is correctly wiring those together.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -78,13 +78,27 @@ class TestEvaluateDefect:
 
 @pytest.fixture(scope="module")
 def summary() -> EvaluationSummary:
+    from benchmarks.evaluate import DefectResult
+
+    def fake_evaluate(
+        record: DefectRecord,
+        structured_llm: object,
+        max_retries: int = 0,
+        **kwargs: object,
+    ) -> DefectResult:
+        return DefectResult(
+            defect_id=record.id,
+            category=record.category,
+            passed_oracle=False,
+            passed_own_tests=False,
+            retry_count=0,
+            max_retries=max_retries,
+            duration_sec=0.01,
+        )
+
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = CodeAuditOutput(
-        identified_bugs=[],
-        suggested_patch="x = 1\n",
-        pytest_suite="def test_x():\n    assert True\n",
-    )
-    return evaluate_all(mock_llm, max_retries=0)
+    with patch("benchmarks.evaluate.evaluate_defect", side_effect=fake_evaluate):
+        return evaluate_all(mock_llm, max_retries=0)
 
 
 class TestEvaluateAll:

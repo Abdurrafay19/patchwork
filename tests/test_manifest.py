@@ -21,7 +21,7 @@ from benchmarks.manifest import (
 class TestLoadManifest:
     def test_loads_all_current_defects(self) -> None:
         manifest = load_manifest()
-        assert len(manifest.defects) >= 5
+        assert len(manifest.defects) == 100
 
     def test_every_defect_has_required_fields(self) -> None:
         manifest = load_manifest()

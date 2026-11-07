@@ -12,7 +12,7 @@ actual model.
 
 Streams each defect's graph run via graph.stream(stream_mode="values")
 instead of a single blocking graph.invoke() -- on a slow local 3B model,
-a 25-defect run can take tens of minutes with total silence otherwise,
+a 100-defect run can take tens of minutes with total silence otherwise,
 which is indistinguishable from a hang. Per-node progress (via rich) and
 a rough tokens/sec estimate give a live signal that something is still
 happening and roughly how fast.
@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import Final, cast
+from typing import Any, Final, cast
 
 from langchain_core.runnables import Runnable
 from langgraph.graph.state import CompiledStateGraph
@@ -77,9 +77,9 @@ class DefectResult(BaseModel):
 
 class EvaluationSummary(BaseModel):
     total_defects: int
-    pass_at_1: int  # passed_oracle True with retry_count == 0
+    pass_at_1: int  # passed oracle with retry_count == 0 (empirical lower bound)
     pass_at_1_rate: float
-    pass_overall: int  # passed_oracle True at any retry_count <= max_retries
+    pass_overall: int  # passed oracle at any retry_count <= max_retries
     pass_overall_rate: float
     avg_duration_sec: float
     avg_peak_vram_mb: float | None
@@ -95,7 +95,7 @@ def _grade_against_oracle(record: DefectRecord, final_code: str) -> bool:
 
 
 def _run_graph_with_progress(
-    graph: CompiledStateGraph[AgentState, None, AgentState, AgentState],
+    graph: CompiledStateGraph[Any, Any, Any, Any],
     initial: AgentState,
     console: Console,
 ) -> AgentState:
@@ -167,10 +167,8 @@ def evaluate_defect(
             _run_graph_with_progress, graph, initial, console
         )
     except (RuntimeError, ConnectionError, TimeoutError, OSError) as exc:
-        # crash-isolation boundary for the batch harness: an unexpected
-        # transport/runtime failure on one defect must not kill the rest
-        # of a 25-defect run. graph.py already handles the SLM schema
-        # failures internally -- this only catches what escapes that.
+        # Crash-isolation boundary: an unexpected transport or runtime failure
+        # on one defect must not abort the remaining benchmark run.
         logger.error(
             "defect_evaluation_crashed",
             extra={
@@ -313,7 +311,7 @@ def main() -> None:
     structured_llm = build_structured_llm()
 
     console.print(
-        "[cyan]Running 25-defect benchmark. This will take a while on a 3B model...[/cyan]\n"
+        "[cyan]Running 100-defect benchmark. This will take a while on a 3B model...[/cyan]\n"
     )
     start = time.perf_counter()
     summary = evaluate_all(structured_llm, console=console)

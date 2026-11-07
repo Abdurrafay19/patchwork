@@ -1,4 +1,10 @@
-"""patchwork.graph."""
+"""
+patchwork.graph
+================
+LangGraph state machine coordinating the self-healing code audit cycle:
+static analysis, patch generation, isolated test execution, reflection,
+and report compilation.
+"""
 
 from __future__ import annotations
 
@@ -277,22 +283,20 @@ def route_after_execution(state: AgentState) -> Literal["end", "reflect"]:
 
 def build_patchwork_graph(
     structured_llm: Runnable[str, CodeAuditOutput],
-) -> CompiledStateGraph[AgentState, None, AgentState, AgentState]:
-    workflow: StateGraph[AgentState, None, AgentState, AgentState] = StateGraph(
-        AgentState
-    )
+) -> CompiledStateGraph[Any, Any, Any, Any]:
+    workflow: StateGraph[Any, Any, Any, Any] = StateGraph(cast(Any, AgentState))
 
-    workflow.add_node("static_analysis", node_static_analysis)
+    workflow.add_node("static_analysis", cast(Any, node_static_analysis))
     workflow.add_node(
         "audit_and_generate",
         cast(Any, make_audit_and_generate_node(structured_llm)),
     )
-    workflow.add_node("execute_tests", node_execute_tests)
+    workflow.add_node("execute_tests", cast(Any, node_execute_tests))
     workflow.add_node(
         "reflect",
         cast(Any, make_reflect_and_heal_node(structured_llm)),
     )
-    workflow.add_node("compile_report", node_compile_report)
+    workflow.add_node("compile_report", cast(Any, node_compile_report))
 
     workflow.set_entry_point("static_analysis")
     workflow.add_edge("static_analysis", "audit_and_generate")
