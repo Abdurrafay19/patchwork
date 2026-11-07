@@ -30,23 +30,14 @@ jobs:
           pip install ruff mypy pytest pytest-cov
 
       - name: Ruff lint
-        run: ruff check patchwork/ tests/ benchmarks/manifest.py benchmarks/evaluate.py benchmarks/__init__.py
+        run: ruff check patchwork/ tests/ benchmarks/
 
       - name: Ruff format check
-        run: ruff format --check patchwork/ tests/ benchmarks/manifest.py benchmarks/evaluate.py
+        run: ruff format --check patchwork/ tests/ benchmarks/
 
       - name: Mypy strict
-        run: mypy --strict patchwork/ benchmarks/manifest.py benchmarks/evaluate.py
+        run: mypy --strict patchwork/ benchmarks/ tests/
 
       - name: Pytest with coverage
-        run: pytest tests/ -v --cov=patchwork --cov-report=term-missing
+        run: pytest tests/ -v --cov=patchwork --cov=benchmarks --cov-report=term-missing
 
-  graph-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt && pip install pytest
-      - run: pytest tests/test_graph.py -v -m "not requires_ollama"
