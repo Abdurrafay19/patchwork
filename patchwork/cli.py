@@ -3,16 +3,15 @@ patchwork.cli
 ==============
 Command-line entry point: python -m patchwork.cli audit target.py --heal
 
-Dual-output pattern (see Output_Handling doc): rich renders live progress
-to the terminal while the graph runs; the patched source and generated
-test suite are always written to disk afterward, so results survive
-after the console closes.
+Renders live progress to the terminal while the graph runs. The patched source,
+generated test suite, audit report, and run telemetry are persisted to disk.
 """
 
 from __future__ import annotations
 
 import sys
 from argparse import ArgumentParser, Namespace
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
@@ -20,8 +19,13 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
-from patchwork.graph import build_patchwork_graph, build_structured_llm
+from patchwork.graph import DEFAULT_MODEL, build_patchwork_graph, build_structured_llm
 from patchwork.state import DEFAULT_MAX_RETRIES, AgentState, create_initial_state
+from patchwork.telemetry.logger import (
+    TelemetryLogEntry,
+    append_telemetry_entry,
+    configure_json_logging,
+)
 from patchwork.telemetry.profiler import GPUProfiler
 
 console: Final = Console()
@@ -67,7 +71,8 @@ def _read_target(path: Path) -> str:
 
 
 def _run_audit(target_path: Path, source: str, max_retries: int) -> AgentState:
-    console.print("[cyan]Building structured LLM client (qwen2.5-coder:3b)...[/cyan]")
+    configure_json_logging()
+    console.print(f"[cyan]Building structured LLM client ({DEFAULT_MODEL})...[/cyan]")
     structured_llm = build_structured_llm()
     graph = build_patchwork_graph(structured_llm)
 
@@ -75,8 +80,6 @@ def _run_audit(target_path: Path, source: str, max_retries: int) -> AgentState:
 
     final_state: AgentState = initial
     with console.status("[yellow]Starting audit...[/yellow]") as status:
-        # stream_mode="values" yields the full state after each node --
-        # audit_trail's newest entry is exactly what that node just did
         for state in graph.stream(initial, stream_mode="values"):
             final_state = state  # type: ignore[assignment]
             latest_entry = state["audit_trail"][-1]
@@ -114,17 +117,19 @@ def _print_summary_table(
 
 def _write_outputs(
     target_path: Path, output_dir: Path, state: AgentState
-) -> tuple[Path, Path]:
+) -> tuple[Path, Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = target_path.stem
 
     patched_path = output_dir / f"{stem}_fixed.py"
     test_path = output_dir / f"test_{stem}.py"
+    report_path = output_dir / f"{stem}_audit_report.md"
 
     patched_path.write_text(state["current_code"], encoding="utf-8")
     test_path.write_text(state["current_tests"], encoding="utf-8")
+    report_path.write_text(state.get("report_markdown", ""), encoding="utf-8")
 
-    return patched_path, test_path
+    return patched_path, test_path, report_path
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -152,11 +157,26 @@ def main(argv: list[str] | None = None) -> int:
     _print_patched_code(final_state)
     _print_summary_table(final_state, telemetry.duration_sec, telemetry.peak_vram_mb)
 
-    patched_path, test_path = _write_outputs(args.target, args.output_dir, final_state)
+    patched_path, test_path, report_path = _write_outputs(
+        args.target, args.output_dir, final_state
+    )
     console.print(f"\n[green]Patched code written to:[/green] {patched_path}")
     console.print(f"[green]Test suite written to:[/green] {test_path}")
+    console.print(f"[green]Audit report written to:[/green] {report_path}")
 
     sandbox = final_state["sandbox_result"]
+    log_entry = TelemetryLogEntry(
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        source_file_path=str(args.target),
+        tests_passed=sandbox.passed if sandbox else None,
+        retry_count=final_state["retry_count"],
+        max_retries=final_state["max_retries"],
+        duration_sec=telemetry.duration_sec,
+        peak_vram_mb=telemetry.peak_vram_mb,
+        gpu_available=telemetry.gpu_available,
+    )
+    append_telemetry_entry(log_entry, path=args.output_dir / "telemetry.json")
+
     return 0 if sandbox is not None and sandbox.passed else 1
 
 

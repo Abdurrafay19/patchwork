@@ -20,3 +20,8 @@ htmlcov/
 
 # Local runtime output
 *.log
+telemetry.json
+*_fixed.py
+*_audit_report.md
+audit_report.md
+

@@ -113,22 +113,27 @@ class TestRunAudit:
 
 
 class TestWriteOutputs:
-    def test_writes_patched_code_and_tests_to_expected_filenames(
+    def test_writes_patched_code_tests_and_report_to_expected_filenames(
         self, tmp_path: Path
     ) -> None:
         state = create_initial_state("target.py", "x = 1")
         state["current_code"] = "x = 2\n"
         state["current_tests"] = "def test_x():\n    assert x == 2\n"
+        state["report_markdown"] = "# Audit Report\n"
 
-        patched_path, test_path = _write_outputs(Path("target.py"), tmp_path, state)
+        patched_path, test_path, report_path = _write_outputs(
+            Path("target.py"), tmp_path, state
+        )
 
         assert patched_path == tmp_path / "target_fixed.py"
         assert test_path == tmp_path / "test_target.py"
+        assert report_path == tmp_path / "target_audit_report.md"
         assert patched_path.read_text(encoding="utf-8") == "x = 2\n"
         assert (
             test_path.read_text(encoding="utf-8")
             == "def test_x():\n    assert x == 2\n"
         )
+        assert report_path.read_text(encoding="utf-8") == "# Audit Report\n"
 
     def test_creates_output_dir_if_missing(self, tmp_path: Path) -> None:
         state = create_initial_state("target.py", "x = 1")
@@ -160,6 +165,7 @@ class TestMain:
             str(target), "def add(a, b):\n    return a + b\n"
         )
         final_state["current_code"] = "def add(a, b):\n    return a + b\n"
+        final_state["report_markdown"] = "# Report"
         final_state["sandbox_result"] = MagicMock(passed=True)
 
         with patch("patchwork.cli._run_audit", return_value=final_state):
@@ -168,6 +174,8 @@ class TestMain:
         assert result == 0
         assert (tmp_path / "target_fixed.py").exists()
         assert (tmp_path / "test_target.py").exists()
+        assert (tmp_path / "target_audit_report.md").exists()
+        assert (tmp_path / "telemetry.json").exists()
 
     def test_failing_run_returns_1(self, tmp_path: Path) -> None:
         target = tmp_path / "target.py"
