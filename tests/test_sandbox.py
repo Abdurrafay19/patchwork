@@ -51,6 +51,11 @@ class TestSanitizeTestImports:
         sanitized = _sanitize_test_imports(code)
         assert sanitized.startswith("# [patchwork:stripped]")
 
+    def test_strips_custom_source_module_import(self) -> None:
+        code = "from my_module import calculate\ndef test_x():\n    assert calculate() == 1\n"
+        sanitized = _sanitize_test_imports(code, source_module_name="my_module")
+        assert sanitized.startswith("# [patchwork:stripped]")
+
     def test_leaves_unrelated_imports_alone(self) -> None:
         code = "import math\ndef test_x():\n    assert math.pi > 3"
         sanitized = _sanitize_test_imports(code)
@@ -161,6 +166,12 @@ class TestRunPytestSandboxIntegration:
         result = run_pytest_sandbox(source, tests, timeout_sec=15)
         # Must not crash with ModuleNotFoundError: the bad import line is
         # stripped, and the `import *` supplies `helper` instead.
+        assert result.passed is True
+
+    def test_real_private_helper_accessible(self) -> None:
+        source = "def _helper_func(x):\n    return x + 1\n"
+        tests = "def test_helper():\n    assert _helper_func(41) == 42\n"
+        result = run_pytest_sandbox(source, tests, timeout_sec=15)
         assert result.passed is True
 
     def test_result_is_pydantic_model_and_json_serializable(self) -> None:

@@ -1,7 +1,7 @@
 """
 Deterministic AST-based structural inspection for the Patchwork self-healing code-audit engine.
 
-this tool never shells out to a subprocess -- `ast.parse` only builds a syntax tree, it does not execute
+This tool never shells out to a subprocess -- `ast.parse` only builds a syntax tree, it does not execute
 any code, so it's safe to run in-process directly against SLM-authored
 source. Its job is narrow: confirm the code is even syntactically valid
 Python before anything downstream (ruff, pytest) wastes a cycle on it,
@@ -206,6 +206,9 @@ def inspect_source(source_code: str) -> ASTInspectionResult:
             functions.append(_extract_function_info(node))
         elif isinstance(node, ast.ClassDef):
             classes.append(_extract_class_info(node))
+
+    functions.sort(key=lambda f: f.line)
+    classes.sort(key=lambda c: c.line)
 
     logger.info(
         "ast_inspect_complete",

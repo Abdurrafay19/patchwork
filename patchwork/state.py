@@ -54,27 +54,23 @@ def _extract_clean_code(value: str) -> str:
 
 
 def _strip_test_functions_from_patch(code: str) -> str:
-    """Removes def test_* functions that bled into the patch implementation."""
-    lines = code.splitlines()
-    non_test_lines: list[str] = []
-    skipping_test = False
-
-    for line in lines:
-        if re.match(r"^\s*def\s+test_\w+", line):
-            skipping_test = True
-            continue
-        if skipping_test:
-            if line.startswith((" ", "\t")) or not line.strip():
-                continue
-            skipping_test = False
-        non_test_lines.append(line)
-
-    sanitized = "\n".join(non_test_lines).strip()
-
+    """Removes test_* functions and their decorators that bled into the patch implementation."""
     try:
-        tree = ast.parse(sanitized)
+        tree = ast.parse(code)
     except (SyntaxError, ValueError):
-        return sanitized
+        lines = code.splitlines()
+        non_test_lines: list[str] = []
+        skipping_test = False
+        for line in lines:
+            if re.match(r"^\s*def\s+test_\w+", line):
+                skipping_test = True
+                continue
+            if skipping_test:
+                if line.startswith((" ", "\t")) or not line.strip():
+                    continue
+                skipping_test = False
+            non_test_lines.append(line)
+        return "\n".join(non_test_lines).strip()
 
     lines_to_remove: set[int] = set()
     for node in ast.walk(tree):
@@ -83,13 +79,20 @@ def _strip_test_functions_from_patch(code: str) -> str:
             and node.name.startswith("test_")
             and hasattr(node, "lineno")
         ):
+            start_lineno = node.lineno
+            if node.decorator_list:
+                decor_lines = [
+                    d.lineno for d in node.decorator_list if hasattr(d, "lineno")
+                ]
+                if decor_lines:
+                    start_lineno = min(decor_lines)
             end_lineno = getattr(node, "end_lineno", node.lineno)
-            for line_idx in range(node.lineno, end_lineno + 1):
+            for line_idx in range(start_lineno, end_lineno + 1):
                 lines_to_remove.add(line_idx)
 
     return "\n".join(
         line
-        for idx, line in enumerate(sanitized.splitlines(), start=1)
+        for idx, line in enumerate(code.splitlines(), start=1)
         if idx not in lines_to_remove
     ).strip()
 
@@ -118,10 +121,27 @@ class CodeAuditOutput(BaseModel):
     @field_validator("suggested_patch", mode="before")
     @classmethod
     def _sanitize_patch(cls, value: str) -> str:
-        cleaned = _extract_clean_code(value)
+        cleaned = value if isinstance(value, str) else _extract_clean_code(value)
+        if cleaned == "PASS_UNCHANGED":
+            return cleaned
+
+        is_executable_code = False
+        try:
+            tree = ast.parse(cleaned)
+            is_executable_code = any(
+                not isinstance(stmt, ast.Expr)
+                or not isinstance(stmt.value, ast.Constant)
+                for stmt in tree.body
+            )
+        except (SyntaxError, ValueError):
+            pass
+
         lower_val = cleaned.lower()
-        if any(phrase in lower_val for phrase in NO_CHANGE_PHRASES):
+        if not is_executable_code and any(
+            phrase in lower_val for phrase in NO_CHANGE_PHRASES
+        ):
             return "PASS_UNCHANGED"
+
         return _strip_test_functions_from_patch(cleaned)
 
     @field_validator("suggested_patch")

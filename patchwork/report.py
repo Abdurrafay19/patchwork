@@ -33,12 +33,8 @@ def _render_diff(original_code: str, current_code: str) -> str:
 
 
 def _render_lint_comparison(original_code: str, current_code: str) -> str:
-    # re-runs the linter fresh on both versions rather than reusing
-    # state["lint_result"] -- that field only ever holds the most recent
-    # analysis of current_code, so it can't give a before/after comparison
-    # on its own.
     before = run_ruff_linter(original_code)
-    after = run_ruff_linter(current_code)
+    after = before if original_code == current_code else run_ruff_linter(current_code)
     before_count = before.issue_count_total if before.success else "N/A"
     after_count = after.issue_count_total if after.success else "N/A"
     return f"- Before: {before_count} issue(s)\n- After: {after_count} issue(s)"

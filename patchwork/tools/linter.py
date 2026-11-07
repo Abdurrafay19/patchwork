@@ -27,49 +27,37 @@ MAX_ISSUES_RETAINED: Final[int] = 30
 MAX_MESSAGE_CHARS: Final[int] = 300
 
 
-class LintIssue(BaseModel):  # Diagonostic about single lint violation found by ruff.
-    code: str | None = (
-        None  # Ruff rule code, e.g. "F401" or "B006". None if not provided.
-    )
-    name: str | None = (
-        None  # Ruff rule name, e.g. "unused-import". None if not provided.
-    )
-    message: str  # Short description of the specific violation.
-    line: int  # 1-indexed line number where the issue starts.
-    column: int  # 1-indexed column number where the issue starts.
-    severity: str = "error"  # Ruff's own severity classification for the rule.
-    is_fixable: bool = False  # True if ruff reports an automatic fix is available for this issue (safe or unsafe).
+class LintIssue(BaseModel):
+    """Diagnostic details for a single lint violation found by Ruff."""
+
+    code: str | None = None
+    name: str | None = None
+    message: str
+    line: int
+    column: int
+    severity: str = "error"
+    is_fixable: bool = False
 
 
 class LintRunResult(BaseModel):
-    success: (
-        bool  # did ruff run without any failures (even if it found issues)? True/False
-    )
-    issues: list[LintIssue] = Field(
-        default_factory=list
-    )  # parsed, truncated list of individual diagnostics
-    issue_count_total: int = 0  # total reported issues
-    timed_out: bool = False  # True if the ruff subprocess exceeded `timeout_sec`
-    duration_sec: float = Field(
-        ge=0.0
-    )  # wall-clock time the subprocess actually ran for
-    error_message: str | None = (
-        None  # failures reported for ruff (not the linting issues themselves)
-    )
+    """Result of running Ruff static analysis on source code."""
+
+    success: bool
+    issues: list[LintIssue] = Field(default_factory=list)
+    issue_count_total: int = 0
+    timed_out: bool = False
+    duration_sec: float = Field(ge=0.0)
+    error_message: str | None = None
 
 
 def _truncate_message(message: str, max_chars: int = MAX_MESSAGE_CHARS) -> str:
-
     if len(message) <= max_chars:
         return message
     return f"{message[:max_chars]}...[truncated]"
 
 
-def _parse_ruff_json(
-    raw_stdout: str,
-) -> list[
-    LintIssue
-]:  # takes the JSON output from `ruff check --output-format=json` and returns a list of LintIssue objects, truncating messages as needed.
+def _parse_ruff_json(raw_stdout: str) -> list[LintIssue]:
+    """Parses JSON output from `ruff check --output-format=json` into a list of LintIssues."""
     raw_entries = json.loads(raw_stdout)
     issues: list[LintIssue] = []
     for entry in raw_entries:
@@ -99,7 +87,8 @@ def _parse_ruff_json(
 def run_ruff_linter(
     source_code: str,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
-) -> LintRunResult:  # runs `ruff check` on the provided source code string, returning a structured result with diagnostics and metadata.
+) -> LintRunResult:
+    """Executes Ruff against source code in a disposable directory."""
     if timeout_sec <= 0:
         raise ValueError(f"timeout_sec must be positive, got {timeout_sec!r}")
 

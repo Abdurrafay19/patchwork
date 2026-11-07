@@ -76,6 +76,23 @@ class TestCodeAuditOutputTestContamination:
         assert "def test_" not in output.suggested_patch
         assert "def f():" in output.suggested_patch
 
+    def test_decorated_test_function_is_stripped_completely(self) -> None:
+        contaminated = (
+            "@pytest.mark.foo\n"
+            "def test_f():\n"
+            "    assert 1 == 1\n\n"
+            "def real_func():\n"
+            "    return 42\n"
+        )
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch=contaminated,
+            pytest_suite="def test_x():\n    assert True",
+        )
+        assert "@pytest.mark" not in output.suggested_patch
+        assert "def test_" not in output.suggested_patch
+        assert "def real_func():" in output.suggested_patch
+
     def test_clean_patch_with_no_test_functions_accepted(self) -> None:
         output = CodeAuditOutput(
             identified_bugs=[],
@@ -172,6 +189,20 @@ class TestCodeAuditOutputSyntaxValidation:
             pytest_suite="def test_f():\n    assert True",
         )
         assert output.suggested_patch == "PASS_UNCHANGED"
+
+    def test_valid_code_with_comment_not_converted_to_pass_unchanged(self) -> None:
+        code = (
+            "def add(a, b):\n"
+            "    # This part of the code is already correct\n"
+            "    return a + b\n"
+        )
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch=code,
+            pytest_suite="def test_x():\n    assert True",
+        )
+        assert output.suggested_patch == code.strip()
+        assert output.suggested_patch != "PASS_UNCHANGED"
 
 
 class TestCodeAuditOutputEmptyFieldRejection:
