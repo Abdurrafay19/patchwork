@@ -1,3 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "patchwork"
+version = "1.1.0"
+description = "Local self-healing code repair agent"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "langgraph>=1.2.0",
+    "langchain-ollama>=1.1.0",
+    "pydantic>=2.0",
+    "rich>=13.0",
+    "ruff>=0.16.0",
+    "pytest>=8.0",
+    "httpx>=0.28.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["patchwork*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
