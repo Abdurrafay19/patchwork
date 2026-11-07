@@ -12,7 +12,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from benchmarks.evaluate import EvaluationSummary, evaluate_all, evaluate_defect
+from benchmarks.evaluate import (
+    DefectResult,
+    EvaluationSummary,
+    evaluate_all,
+    evaluate_defect,
+)
 from benchmarks.manifest import DefectRecord, load_manifest
 from patchwork.state import CodeAuditOutput
 
@@ -74,6 +79,34 @@ class TestEvaluateDefect:
         result = evaluate_defect(_record("mutable_default_01"), mock_llm, max_retries=0)
         assert result.passed_oracle is False
         assert result.error is not None
+
+    def test_defect_result_parses_legacy_json_without_attempts(self) -> None:
+        raw_json = (
+            '{"defect_id": "d1", "category": "c1", "passed_oracle": true, '
+            '"passed_own_tests": true, "retry_count": 0, "max_retries": 3, '
+            '"duration_sec": 1.5}'
+        )
+        parsed = DefectResult.model_validate_json(raw_json)
+        assert parsed.defect_id == "d1"
+        assert parsed.attempts == []
+
+    def test_evaluate_defect_populates_attempts(self) -> None:
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch=(
+                "def append_item(item, target_list=None):\n"
+                "    if target_list is None:\n"
+                "        target_list = []\n"
+                "    target_list.append(item)\n"
+                "    return target_list\n"
+            ),
+            pytest_suite="def test_x():\n    assert True\n",
+        )
+        result = evaluate_defect(_record("mutable_default_01"), mock_llm, max_retries=0)
+        assert len(result.attempts) >= 1
+        assert result.attempts[0].attempt == 0
+        assert "def append_item" in result.attempts[0].patch_code
 
 
 @pytest.fixture(scope="module")

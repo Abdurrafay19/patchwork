@@ -24,4 +24,5 @@ telemetry.json
 *_fixed.py
 *_audit_report.md
 audit_report.md
+/test_*.py
 

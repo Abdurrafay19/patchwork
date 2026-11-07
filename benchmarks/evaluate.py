@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import time
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Final, cast
 
@@ -62,6 +63,14 @@ _GENERATION_TRAIL_MARKERS: Final[tuple[str, ...]] = (
 )
 
 
+class AttemptRecord(BaseModel):
+    attempt: int
+    patch_code: str
+    test_code: str
+    passed_own_tests: bool | None = None
+    passed_oracle: bool | None = None
+
+
 class DefectResult(BaseModel):
     defect_id: str
     category: str
@@ -73,6 +82,7 @@ class DefectResult(BaseModel):
     peak_vram_mb: float | None = None
     gpu_available: bool = False
     error: str | None = None  # populated only if the run itself crashed
+    attempts: list[AttemptRecord] = Field(default_factory=list)
 
 
 class EvaluationSummary(BaseModel):
@@ -98,7 +108,7 @@ def _run_graph_with_progress(
     graph: CompiledStateGraph[Any, Any, Any, Any],
     initial: AgentState,
     console: Console,
-) -> AgentState:
+) -> tuple[AgentState, list[AttemptRecord]]:
     """Streams the graph node-by-node, printing progress and a rough
     tokens/sec estimate for generation/reflection steps.
 
@@ -108,17 +118,35 @@ def _run_graph_with_progress(
         console: Shared rich Console to print progress lines to.
 
     Returns:
-        The final AgentState after the graph reaches its terminal edge.
+        The final AgentState and list of recorded attempts.
     """
     final_state: AgentState = initial
     prev_time = time.perf_counter()
     prev_content_len = len(initial["current_code"]) + len(initial["current_tests"])
+    attempts: list[AttemptRecord] = []
+    seen_retries: set[int] = set()
 
     for state in graph.stream(initial, stream_mode="values"):
         now = time.perf_counter()
         step_duration = now - prev_time
         entry = state["audit_trail"][-1]
         content_len = len(state["current_code"]) + len(state["current_tests"])
+
+        if "Test execution:" in entry:
+            retry = state["retry_count"]
+            if retry not in seen_retries:
+                seen_retries.add(retry)
+                passed = (
+                    state["sandbox_result"].passed if state["sandbox_result"] else None
+                )
+                attempts.append(
+                    AttemptRecord(
+                        attempt=retry,
+                        patch_code=state["current_code"],
+                        test_code=state["current_tests"],
+                        passed_own_tests=passed,
+                    )
+                )
 
         tok_s_note = ""
         is_generation_step = any(
@@ -140,7 +168,18 @@ def _run_graph_with_progress(
         prev_content_len = content_len
         final_state = cast(AgentState, state)
 
-    return final_state
+    if not attempts and final_state["current_tests"]:
+        sandbox = final_state["sandbox_result"]
+        attempts.append(
+            AttemptRecord(
+                attempt=final_state["retry_count"],
+                patch_code=final_state["current_code"],
+                test_code=final_state["current_tests"],
+                passed_own_tests=sandbox.passed if sandbox else None,
+            )
+        )
+
+    return final_state, attempts
 
 
 def evaluate_defect(
@@ -163,7 +202,7 @@ def evaluate_defect(
     console.rule(f"[bold]\\[{defect_index}/{total_defects}] {record.id}[/bold]")
 
     try:
-        final_state, telemetry = profile_call(
+        (final_state, attempts), telemetry = profile_call(
             _run_graph_with_progress, graph, initial, console
         )
     except (RuntimeError, ConnectionError, TimeoutError, OSError) as exc:
@@ -187,11 +226,16 @@ def evaluate_defect(
             max_retries=max_retries,
             duration_sec=0.0,
             error=str(exc),
+            attempts=[],
         )
 
     sandbox_result = final_state["sandbox_result"]
     passed_own_tests = sandbox_result.passed if sandbox_result else False
     passed_oracle = _grade_against_oracle(record, final_state["current_code"])
+
+    for att in attempts:
+        if att.attempt == final_state["retry_count"]:
+            att.passed_oracle = passed_oracle
 
     status = "[green]PASS[/green]" if passed_oracle else "[red]FAIL[/red]"
     console.print(
@@ -213,6 +257,7 @@ def evaluate_defect(
         duration_sec=telemetry.duration_sec,
         peak_vram_mb=telemetry.peak_vram_mb,
         gpu_available=telemetry.gpu_available,
+        attempts=attempts,
     )
 
 
@@ -306,6 +351,15 @@ def _print_summary(summary: EvaluationSummary, console: Console) -> None:
 
 
 def main() -> None:
+    parser = ArgumentParser(description="Run the Patchwork benchmark evaluation suite.")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=RESULTS_PATH,
+        help="Path where summary results JSON will be written (default: benchmarks/results.json)",
+    )
+    args = parser.parse_args()
+
     console = Console()
     console.print("[cyan]Building structured LLM client...[/cyan]")
     structured_llm = build_structured_llm()
@@ -321,8 +375,8 @@ def main() -> None:
     _print_summary(summary, console)
     console.print(f"\nTotal wall time: {elapsed:.1f}s")
 
-    save_results(summary)
-    console.print(f"Results written to {RESULTS_PATH}")
+    save_results(summary, path=args.output)
+    console.print(f"Results written to {args.output}")
 
 
 if __name__ == "__main__":
