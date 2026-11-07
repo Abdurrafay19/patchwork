@@ -14,6 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from typing import Any, Final, Literal, cast
 
+import httpx
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable, RunnableLambda
@@ -59,6 +60,7 @@ def build_structured_llm(
     repeat_penalty: float = DEFAULT_REPEAT_PENALTY,
     num_ctx: int = DEFAULT_NUM_CTX,
     num_predict: int = DEFAULT_NUM_PREDICT,
+    timeout: float = DEFAULT_LLM_TIMEOUT_SEC,
 ) -> Runnable[str, CodeAuditOutput]:
     llm = ChatOllama(
         model=model,
@@ -66,6 +68,7 @@ def build_structured_llm(
         repeat_penalty=repeat_penalty,
         num_ctx=num_ctx,
         num_predict=num_predict,
+        client_kwargs={"timeout": timeout},
     )
 
     structured_llm = llm.with_structured_output(CodeAuditOutput)
@@ -95,6 +98,10 @@ def _invoke_with_timeout(
     except FutureTimeoutError as exc:
         raise LlmCallTimeoutError(
             f"structured_llm.invoke() exceeded {timeout_sec}s timeout"
+        ) from exc
+    except httpx.TimeoutException as exc:
+        raise LlmCallTimeoutError(
+            f"structured_llm.invoke() HTTP timeout: {exc}"
         ) from exc
 
 
@@ -138,11 +145,23 @@ def _build_reflect_prompt(state: AgentState) -> str:
             "You MUST fix this formatting/implementation issue.\n\n"
         )
 
+    tests_context = ""
+    if state.get("current_tests"):
+        tests_context = (
+            f"Failed Test Suite:\n```python\n{state['current_tests']}\n```\n\n"
+        )
+
+    original_context = ""
+    if state.get("original_code") and state["original_code"] != state["current_code"]:
+        original_context = f"Original Buggy Code (reference baseline):\n```python\n{state['original_code']}\n```\n\n"
+
     return (
         f"{schema_warning}"
         "The previous patch failed verification.\n\n"
         f"Failure Diagnostics:\n{failure_output}\n\n"
-        f"Current code:\n```python\n{state['current_code']}\n```\n\n"
+        f"{tests_context}"
+        f"Current candidate code:\n```python\n{state['current_code']}\n```\n\n"
+        f"{original_context}"
         "Instructions:\n"
         "1. `suggested_patch`: Provide the FULL, repaired Python code with indented body.\n"
         "   - NEVER output just the signature line.\n"

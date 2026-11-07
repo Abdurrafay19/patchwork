@@ -30,9 +30,9 @@ def _extract_clean_code(value: str) -> str:
 
     val = value.strip()
 
-    # If the model emitted literal escaped newlines ("\\n") instead of real newlines
+    # Safely convert literal escaped newlines without corrupting UTF-8 characters
     if "\\n" in val and "\n" not in val:
-        val = val.encode("utf-8").decode("unicode_escape")
+        val = val.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "    ")
 
     # 1. Closed code block
     fence_match = re.search(r"```(?:python)?\s*\n?(.*?)\n?```", val, re.DOTALL)

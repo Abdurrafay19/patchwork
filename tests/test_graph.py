@@ -15,6 +15,7 @@ from langchain_core.exceptions import OutputParserException
 from pydantic import ValidationError
 
 from patchwork.graph import (
+    DEFAULT_LLM_TIMEOUT_SEC,
     DEFAULT_MODEL,
     DEFAULT_NUM_CTX,
     DEFAULT_NUM_PREDICT,
@@ -57,6 +58,7 @@ class TestBuildStructuredLlm:
             repeat_penalty=DEFAULT_REPEAT_PENALTY,
             num_ctx=DEFAULT_NUM_CTX,
             num_predict=DEFAULT_NUM_PREDICT,
+            client_kwargs={"timeout": DEFAULT_LLM_TIMEOUT_SEC},
         )
         mock_llm_instance.with_structured_output.assert_called_once_with(
             CodeAuditOutput
@@ -73,6 +75,7 @@ class TestBuildStructuredLlm:
             repeat_penalty=0.9,
             num_ctx=4096,
             num_predict=1024,
+            timeout=30.0,
         )
 
         mock_chat_ollama.assert_called_once_with(
@@ -81,6 +84,7 @@ class TestBuildStructuredLlm:
             repeat_penalty=0.9,
             num_ctx=4096,
             num_predict=1024,
+            client_kwargs={"timeout": 30.0},
         )
 
 
@@ -231,6 +235,15 @@ class TestInvokeWithTimeout:
 
         assert result == mock_result
 
+    def test_httpx_timeout_raises_llm_call_timeout_error(self) -> None:
+        import httpx
+
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = httpx.ReadTimeout("Request timed out")
+
+        with pytest.raises(LlmCallTimeoutError, match="HTTP timeout"):
+            _invoke_with_timeout(mock_llm, "some prompt", timeout_sec=5.0)
+
 
 class TestNodeExecuteTests:
     def test_passing_generated_tests_report_passed(self) -> None:
@@ -313,19 +326,22 @@ class TestBuildPatchworkGraphIntegration:
 
 class TestBuildReflectPrompt:
     def test_includes_diagnostics_and_current_code(self) -> None:
-        # updated: the reflect prompt no longer echoes current_tests back
-        # to the model (see graph.py) -- only current_code and the
-        # failure diagnostics are included, so this no longer asserts on
-        # a "Current tests:" section that doesn't exist anymore
-        state = create_initial_state("target.py", "def f():\n    return 1\n")
+        state = create_initial_state(
+            "target.py", "def f():\n    # original comment\n    return 0\n"
+        )
+        state["current_code"] = "def f():\n    return 1\n"
         state["current_tests"] = "def test_f():\n    assert f() == 2\n"
         state = node_execute_tests(state)  # real sandbox run -> real failure output
 
         prompt = _build_reflect_prompt(state)
 
         assert "Failure Diagnostics:" in prompt
-        assert "Current code:" in prompt
+        assert "Current candidate code:" in prompt
         assert "def f():" in prompt
+        assert "Failed Test Suite:" in prompt
+        assert "def test_f():" in prompt
+        assert "Original Buggy Code (reference baseline):" in prompt
+        assert "# original comment" in prompt
 
     def test_handles_missing_sandbox_result_gracefully(self) -> None:
         state = create_initial_state("target.py", "x = 1")

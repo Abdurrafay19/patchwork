@@ -54,6 +54,16 @@ class TestCodeAuditOutputMarkdownStripping:
         )
         assert output.pytest_suite == "def test_add():\n    assert add(1, 2) == 3"
 
+    def test_escaped_newlines_preserves_unicode_characters(self) -> None:
+        raw = "def greet(name):\\n    # résumé: π ≈ 3.14159 🚀\\n    return f'Hello {name}'"
+        output = CodeAuditOutput(
+            identified_bugs=[],
+            suggested_patch=raw,
+            pytest_suite="def test_greet():\n    assert True",
+        )
+        assert "résumé: π ≈ 3.14159 🚀" in output.suggested_patch
+        assert "\n" in output.suggested_patch
+
 
 class TestCodeAuditOutputTestContamination:
     def test_test_function_in_patch_is_stripped_not_rejected(self) -> None:
