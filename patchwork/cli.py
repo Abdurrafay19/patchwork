@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Final
 
+import httpx
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
@@ -150,8 +151,28 @@ def main(argv: list[str] | None = None) -> int:
 
     max_retries = args.max_retries if args.heal else 0
 
-    with GPUProfiler() as profiler:
-        final_state = _run_audit(args.target, source, max_retries)
+    try:
+        with GPUProfiler() as profiler:
+            final_state = _run_audit(args.target, source, max_retries)
+    except Exception as exc:
+        is_conn_error = False
+        curr: BaseException | None = exc
+        while curr is not None:
+            if isinstance(
+                curr, (ConnectionError, httpx.ConnectError)
+            ) or "10061" in str(curr):
+                is_conn_error = True
+                break
+            curr = curr.__cause__ or curr.__context__
+
+        if is_conn_error:
+            console.print(
+                f"\n[red]Error:[/red] Could not connect to local Ollama server ({exc}).\n"
+                "Please ensure Ollama is running (`ollama serve` or open the Ollama desktop app)."
+            )
+            return 1
+        raise
+
     telemetry = profiler.result()
 
     _print_patched_code(final_state)
