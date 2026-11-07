@@ -56,20 +56,21 @@ This runs all 100 defects through the full agent graph, grades each result again
 
 ### Benchmark results
 
-Ran against `qwen2.5-coder:3b` (temperature 0.0, repeat penalty 1.05) on an RTX 3050 Laptop GPU (4GB VRAM):
+Ran against `qwen2.5-coder:3b` and `qwen2.5-coder:7b` (temperature 0.0, repeat penalty 1.05) on an RTX 3050 Laptop GPU (4GB VRAM):
 
-| Metric | Initial Run (v1.0) | Improved Run (v1.1) |
-| --- | --- | --- |
-| Total defects | 100 | 100 |
-| Categories | 21 | 21 |
-| Pass@1 (fixed on first try)* | 38% | 38% |
-| Overall pass rate (within 3 retries) | 58% | **60%** (+2) |
-| Average time per defect | 7.80s | 8.45s |
-| Average GPU memory | 2532 MB | 2513 MB (~2.5 GB) |
+| Metric | Initial Run (v1.0 - 3B) | Improved Run (v1.1 - 3B) | Scale Test (7B) |
+| --- | --- | --- | --- |
+| Total defects | 100 | 100 | 100 |
+| Categories | 21 | 21 | 21 |
+| Pass@1 (fixed on first try)* | 38% | 38% | **60%** (+22) |
+| Overall pass rate (within 3 retries) | 58% | 60% | **76%** (+16) |
+| Confirmation bias gap (self-test vs oracle) | 17 points | 9 points | **5 points** |
+| Average time per defect | 7.80s | 8.45s | 24.09s |
+| Average GPU memory | 2532 MB | 2513 MB (~2.5 GB) | 2377 MB (~2.4 GB) |
 
 *\*Pass@1 means both the fix and the generated test passed on attempt 0 without needing retries.*
 
-The reflection loop improved the fix rate from 38% to 60% — 22 defects that failed on the first try were repaired once the model saw its test failure and tried again. Average time per defect dropped from ~29.6s in early unconstrained prototype runs (preserved in `benchmarks/first-results.json`) down to ~8s by setting generation token limits (`num_predict`), background timeouts, and cleaner test prompts.
+The reflection loop improved the fix rate from 38% to 60% on the 3B model, and from 60% to 76% on the 7B model. Average time per defect on 3B dropped from ~29.6s in early unconstrained prototype runs (preserved in `benchmarks/first-results.json`) down to ~8s by setting generation token limits (`num_predict`), background timeouts, and cleaner test prompts. On 7B, average time per defect was ~24s because Ollama offloaded roughly 58% of the model layers to system RAM to stay cleanly within the laptop's 4GB VRAM limit.
 
 ### What improved in v1.1 and why scores changed
 
@@ -92,6 +93,21 @@ The answer comes down to what agent architecture can and cannot do:
 - **What scaffolding cannot fix:** Qwen 2.5 Coder 3B is a 3-billion parameter, 4-bit quantized model running locally on a laptop GPU. For categories like float precision (IEEE 754 rounding), regex character escapes, and generator state exhaustion, the model simply does not understand the underlying runtime mechanics. When an SLM fundamentally does not know how floating-point math works, feeding it the traceback just makes it generate different broken math.
 
 In short: cleaner agent scaffolding makes the repair loop reliable and prevents crashes, but it cannot magically give a 3B model reasoning capabilities that are not in its weights.
+
+### What happens when scaling to a 7B model?
+
+To test whether the remaining 40% of failures in v1.1 were agent harness flaws or 3B model limits, I ran the exact same benchmark through `qwen2.5-coder:7b` (`benchmarks/results_7b.json`):
+
+- **60% fixed on the first try (Pass@1):** 7B got 60 out of 100 defects right without needing a single retry — matching 3B's final score after 3 retries.
+- **76% overall pass rate:** Fixed 76 out of 100 defects within 3 retries.
+- **Cracked previous 0% categories:** 
+  - `regex_special_chars` jumped from 0% (0/5) to 60% (3/5).
+  - `string_strip_misuse` jumped from 0% (0/5) to 60% (3/5), correctly replacing `.strip()` with `.removesuffix()` and `.removeprefix()`.
+  - `shallow_deep_copy` jumped from 25% (1/4) to 100% (4/4) using `copy.deepcopy()`.
+  - `off_by_one_slicing` reached 100% (5/5).
+  - `incorrect_boundary_conditions` jumped from 40% (2/5) to 80% (4/5).
+- **Hard limits that still failed:** `generator_exhaustion` remained at 0% (0/5) on both 3B and 7B. Neither model understands that iterating through a generator in Python exhausts it, showing that generator lifecycle tracking is a blind spot for sub-10B models that needs deterministic static analysis rather than prompt reflection.
+- **Less confirmation bias:** The gap between self-tests and hidden oracle tests shrank from 17 points down to just 5 points (81% vs 76%) because 7B writes much stricter tests that fail when its own code is broken.
 
 
 ### What the model is good at (and what it struggles with)
