@@ -1,0 +1,2560 @@
+{
+  "model": "qwen2.5-coder:7b",
+  "total_defects": 100,
+  "pass_at_1": 60,
+  "pass_at_1_rate": 0.6,
+  "pass_overall": 76,
+  "pass_overall_rate": 0.76,
+  "avg_duration_sec": 24.086922687000225,
+  "avg_peak_vram_mb": 2377.30390625,
+  "results": [
+    {
+      "defect_id": "mutable_default_01",
+      "category": "mutable_default_arguments",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.011231899999984,
+      "peak_vram_mb": 2368.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def append_item(item, target_list=None):\n    if target_list is None:\n        target_list = []\n    target_list.append(item)\n    return target_list",
+          "test_code": "def test_append_item_standard_behavior():\n    assert append_item(1) == [1]\n    assert append_item(2, [1]) == [1, 2]\n\ndef test_append_item_edge_case_none():\n    assert append_item(1, None) == [1]",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "mutable_default_02",
+      "category": "mutable_default_arguments",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 13.904782199999318,
+      "peak_vram_mb": 2368.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def add_tag(tag, tags=None):\n    if tags is None:\n        tags = []\n    if tag not in tags:\n        tags.append(tag)\n    return tags",
+          "test_code": "def test_add_tag_standard_behavior():\n    assert add_tag('python', ['java', 'c++']) == ['java', 'c++', 'python']\n\ndef test_add_tag_empty_list():\n    assert add_tag('python', []) == ['python']",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "mutable_default_03",
+      "category": "mutable_default_arguments",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 21.85347080000065,
+      "peak_vram_mb": 2368.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def record_event(event, timestamp, log=None):\n    if log is None:\n        log = []\n    log.append((event, timestamp))\n    return log",
+          "test_code": "def test_record_event():\n    assert record_event('click', 1633072800) == [('click', 1633072800)]\n\ndef test_record_event_with_existing_log():\n    log = [('click', 1633072800)]\n    assert record_event('scroll', 1633072801, log) == [('click', 1633072800), ('scroll', 1633072801)]",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "mutable_default_04",
+      "category": "mutable_default_arguments",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.269298199997138,
+      "peak_vram_mb": 2368.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def increment_count(key, counts=None):\n    if counts is None:\n        counts = {}\n    counts[key] = counts.get(key, 0) + 1\n    return counts",
+          "test_code": "def test_increment_count():\n    assert increment_count('a') == {'a': 1}\n    assert increment_count('a', {'a': 2}) == {'a': 3}\n\ndef test_increment_count_with_none_counts():\n    assert increment_count('a', None) == {'a': 1}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "mutable_default_05",
+      "category": "mutable_default_arguments",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.773104099997,
+      "peak_vram_mb": 2368.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "class Basket:\n    def __init__(self, items=None):\n        if items is None:\n            items = []\n        self.items = items\n\n    def add(self, item):\n        self.items.append(item)",
+          "test_code": "def test_basket_add_item():\n    basket = Basket()\n    basket.add('apple')\n    assert basket.items == ['apple']\n\ndef test_basket_empty_items():\n    basket = Basket([])\n    basket.add('banana')\n    assert basket.items == ['banana']",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "unhandled_nonetype_01",
+      "category": "unhandled_nonetype",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 59.876573200002895,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_user_email(user):\n    return user['profile']['email']",
+          "test_code": "def test_get_user_email():\n    user = {'profile': {'email': 'test@example.com'}}\n    assert get_user_email(user) == 'test@example.com'\n\ndef test_get_user_email_empty_profile():\n    user = {}\n    assert get_user_email(user) == KeyError",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def get_user_email(user):\n    if 'profile' in user and 'email' in user['profile']:\n        return user['profile']['email']\n    else:\n        raise KeyError('Email not found')",
+          "test_code": "def test_get_user_email():\n    user = {'profile': {'email': 'test@example.com'}}\n    assert get_user_email(user) == 'test@example.com'\n\ndef test_get_user_email_empty_profile():\n    user = {}\n    with pytest.raises(KeyError):\n        get_user_email(user)",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def get_user_email(user):\n    if 'profile' in user and 'email' in user['profile']:\n        return user['profile']['email']\n    else:\n        raise KeyError('Email not found')",
+          "test_code": "def test_get_user_email():\n    user = {'profile': {'email': 'test@example.com'}}\n    assert get_user_email(user) == 'test@example.com'\n\ndef test_get_user_email_empty_profile():\n    user = {}\n    with pytest.raises(KeyError):\n        get_user_email(user)",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def get_user_email(user):\n    if 'profile' in user and 'email' in user['profile']:\n        return user['profile']['email']\n    else:\n        raise KeyError('Email not found')",
+          "test_code": "def test_get_user_email():\n    user = {'profile': {'email': 'test@example.com'}}\n    assert get_user_email(user) == 'test@example.com'\n\ndef test_get_user_email_empty_profile():\n    user = {}\n    with pytest.raises(KeyError):\n        get_user_email(user)",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "unhandled_nonetype_02",
+      "category": "unhandled_nonetype",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 24.48366239999814,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_theme(config):\n    return config['app']['settings']['theme']",
+          "test_code": "def test_get_theme_valid_config():\n    config = {'app': {'settings': {'theme': 'dark'}}}\n    assert get_theme(config) == 'dark'\n\ndef test_get_theme_missing_key():\n    config = {}\n    assert get_theme(config) is None",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def get_theme(config):\n    try:\n        return config['app']['settings']['theme']\n    except KeyError:\n        return None",
+          "test_code": "def test_get_theme_valid_config():\n    config = {'app': {'settings': {'theme': 'dark'}}}\n    assert get_theme(config) == 'dark'\n\ndef test_get_theme_missing_key():\n    config = {}\n    assert get_theme(config) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "unhandled_nonetype_03",
+      "category": "unhandled_nonetype",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 31.94312749999881,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_shipping_city(order):\n    return order['shipping']['address']['city']",
+          "test_code": "def test_get_shipping_city():\n    order = {\n        'shipping': {\n            'address': {\n                'city': 'New York'\n            }\n        }\n    }\n    assert get_shipping_city(order) == 'New York'\n\ndef test_get_shipping_city_empty_order():\n    order = {}\n    assert get_shipping_city(order) is None",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def get_shipping_city(order):\n    if 'shipping' in order and 'address' in order['shipping'] and 'city' in order['shipping']['address']:\n        return order['shipping']['address']['city']\n    return None",
+          "test_code": "def test_get_shipping_city():\n    order = {\n        'shipping': {\n            'address': {\n                'city': 'New York'\n            }\n        }\n    }\n    assert get_shipping_city(order) == 'New York'\n\ndef test_get_shipping_city_empty_order():\n    order = {}\n    assert get_shipping_city(order) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "unhandled_nonetype_04",
+      "category": "unhandled_nonetype",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 25.973970200000622,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_product_price(product):\n    return product['pricing']['amount']",
+          "test_code": "def test_get_product_price():\n    product = {'pricing': {'amount': 100}}\n    assert get_product_price(product) == 100\n\ndef test_get_product_price_empty_pricing():\n    product = {}\n    assert get_product_price(product) is None",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def get_product_price(product):\n    if 'pricing' in product and 'amount' in product['pricing']:\n        return product['pricing']['amount']\n    return None",
+          "test_code": "def test_get_product_price():\n    product = {'pricing': {'amount': 100}}\n    assert get_product_price(product) == 100\n\ndef test_get_product_price_empty_pricing():\n    product = {}\n    assert get_product_price(product) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "unhandled_nonetype_05",
+      "category": "unhandled_nonetype",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 25.876112800000556,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_manager_name(employee):\n    return employee['manager']['name']",
+          "test_code": "def test_get_manager_name():\n    employee = {'manager': {'name': 'John Doe'}}\n    assert get_manager_name(employee) == 'John Doe'\n\ndef test_get_manager_name_edge_case():\n    employee = {}\n    assert get_manager_name(employee) is None",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def get_manager_name(employee):\n    if 'manager' in employee and 'name' in employee['manager']:\n        return employee['manager']['name']\n    return None",
+          "test_code": "def test_get_manager_name():\n    employee = {'manager': {'name': 'John Doe'}}\n    assert get_manager_name(employee) == 'John Doe'\n\ndef test_get_manager_name_edge_case():\n    employee = {}\n    assert get_manager_name(employee) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "off_by_one_slicing_01",
+      "category": "off_by_one_slicing",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.773979199999303,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def sum_range(numbers, start, end):\n    return sum(numbers[start:end+1])",
+          "test_code": "def test_sum_range_standard():\n    assert sum_range([1, 2, 3, 4, 5], 1, 3) == 9\n\ndef test_sum_range_edge_case():\n    assert sum_range([1, 2, 3, 4, 5], 0, 4) == 15",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "off_by_one_slicing_02",
+      "category": "off_by_one_slicing",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 12.107038699999976,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_last_n_items(items, n):\n    return items[-n:]",
+          "test_code": "def test_get_last_n_items():\n    assert get_last_n_items([1, 2, 3, 4, 5], 2) == [4, 5]\n\ndef test_get_last_n_items_edge_case():\n    assert get_last_n_items([], 0) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "off_by_one_slicing_03",
+      "category": "off_by_one_slicing",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 21.138234699999884,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def binary_search(sorted_list, target):\n    low, high = 0, len(sorted_list) - 1\n    while low <= high:\n        mid = (low + high) // 2\n        if sorted_list[mid] == target:\n            return mid\n        elif sorted_list[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    return -1",
+          "test_code": "def test_binary_search_found():\n    assert binary_search([1, 2, 3, 4, 5], 3) == 2\n\ndef test_binary_search_not_found():\n    assert binary_search([1, 2, 3, 4, 5], 6) == -1",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "off_by_one_slicing_04",
+      "category": "off_by_one_slicing",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.388079299998935,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_page_items(items, page, page_size):\n    start = page * page_size\n    return items[start : start + page_size]",
+          "test_code": "def test_get_page_items_standard_behavior():\n    items = [1, 2, 3, 4, 5]\n    assert get_page_items(items, 0, 2) == [1, 2]\n\ndef test_get_page_items_edge_case():\n    items = []\n    assert get_page_items(items, 0, 1) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "off_by_one_slicing_05",
+      "category": "off_by_one_slicing",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 20.714078699998936,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def first_n_chars(s, n):\n    return s[0 : n]",
+          "test_code": "def test_first_n_chars():\n    assert first_n_chars('hello', 3) == 'hel'\n\ndef test_first_n_chars_edge_case():\n    assert first_n_chars('a', 1) == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def first_n_chars(s, n):\n    return s[0 : n]",
+          "test_code": "def test_first_n_chars_edge_case():\n    assert first_n_chars('a', 1) == 'a'\n\ndef test_first_n_chars_normal_case():\n    assert first_n_chars('hello', 3) == 'hel'",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "float_precision_01",
+      "category": "float_precision",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.70181859999866,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_total_correct(a, b, expected):\n    return a + b == expected",
+          "test_code": "def test_is_total_correct_standard():\n    assert is_total_correct(1, 2, 3) == True\n\ndef test_is_total_correct_boundary():\n    assert is_total_correct(0, 0, 0) == True",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "float_precision_02",
+      "category": "float_precision",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.427648799999588,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def average_equals(values, target):\n    if not values:\n        return False\n    return sum(values) / len(values) == target",
+          "test_code": "def test_average_equals_standard():\n    assert average_equals([1, 2, 3], 2) == True\n\ndef test_average_equals_empty_list():\n    assert average_equals([], 0) == False",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "float_precision_03",
+      "category": "float_precision",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.39899250000235,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def has_reached_target(current, target):\n    return current == target",
+          "test_code": "def test_has_reached_target_standard():\n    assert has_reached_target(5, 5) == True\n\ndef test_has_reached_target_boundary():\n    assert has_reached_target(0, 1) == False",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "float_precision_04",
+      "category": "float_precision",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.479181499998958,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def discount_applied_correctly(price, discount_rate, expected_price):\n    return abs(price * (1 - discount_rate) - expected_price) < 1e-9",
+          "test_code": "def test_discount_applied_correctly():\n    assert discount_applied_correctly(100, 0.2, 80)\n\ndef test_discount_applied_correctly_edge_case():\n    assert discount_applied_correctly(100, 0.0, 100)",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "float_precision_05",
+      "category": "float_precision",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.482343199997558,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_zero(value):\n    return value == 0.0",
+          "test_code": "def test_is_zero_standard():\n    assert is_zero(0.0) == True\n    assert is_zero(1.0) == False\n\ndef test_is_zero_edge_case():\n    assert is_zero(-0.0) == True",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "resource_leaks_01",
+      "category": "resource_leaks",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 51.31800170000133,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def read_file_contents(path):\n    with open(path) as f:\n        return f.read()",
+          "test_code": "def test_read_file_contents():\n    assert read_file_contents('test.txt') == 'expected content'\n\ndef test_read_file_contents_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_file_contents('empty.txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def read_file_contents(path):\n    with open(path, 'r') as f:\n        return f.read()",
+          "test_code": "def test_read_file_contents():\n    assert read_file_contents('test.txt') == 'expected content'\n\ndef test_read_file_contents_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_file_contents('empty.txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def read_file_contents(path):\n    with open(path, 'r') as f:\n        return f.read()",
+          "test_code": "def test_read_file_contents():\n    assert read_file_contents('test.txt') == 'expected content'\n\ndef test_read_file_contents_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_file_contents('empty.txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def read_file_contents(path):\n    with open(path, 'r') as f:\n        return f.read()",
+          "test_code": "def test_read_file_contents():\n    assert read_file_contents('test.txt') == 'expected content'\n\ndef test_read_file_contents_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_file_contents('empty.txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "resource_leaks_02",
+      "category": "resource_leaks",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 61.493795300000784,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def write_log_line(path, line):\n    with open(path, 'a') as f:\n        f.write(line + '\\n')",
+          "test_code": "def test_write_log_line(tmp_path):\n    path = tmp_path / 'log.txt'\n    write_log_line(str(path), 'Hello, world!')\n    assert path.read_text() == 'Hello, world!\\n'\n\ndef test_write_log_line_empty_path():\n    with pytest.raises(TypeError):\n        write_log_line(None, 'Hello, world!')",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def write_log_line(path, line):\n    with open(path, 'a') as f:\n        f.write(line + '\\n')",
+          "test_code": "def test_write_log_line(tmp_path):\n    path = tmp_path / 'log.txt'\n    write_log_line(str(path), 'Hello, world!')\n    assert path.read_text() == 'Hello, world!\\n'\n\ndef test_write_log_line_empty_path():\n    with pytest.raises(TypeError):\n        write_log_line(None, 'Hello, world!')",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def write_log_line(path, line):\n    with open(path, 'a') as f:\n        f.write(line + '\\n')",
+          "test_code": "def test_write_log_line(tmp_path):\n    path = tmp_path / 'log.txt'\n    write_log_line(str(path), 'Hello, world!')\n    assert path.read_text() == 'Hello, world!\\n'\n\ndef test_write_log_line_empty_path():\n    with pytest.raises(TypeError):\n        write_log_line(None, 'Hello, world!')",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def write_log_line(path, line):\n    with open(path, 'a') as f:\n        f.write(line + '\\n')",
+          "test_code": "def test_write_log_line(tmp_path):\n    path = tmp_path / 'log.txt'\n    write_log_line(str(path), 'Hello, world!')\n    assert path.read_text() == 'Hello, world!\\n'\n\ndef test_write_log_line_empty_path():\n    with pytest.raises(TypeError):\n        write_log_line(None, 'Hello, world!')",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "resource_leaks_03",
+      "category": "resource_leaks",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 50.88876890000029,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def count_lines(path):\n    with open(path) as f:\n        lines = f.readlines()\n    return len(lines)",
+          "test_code": "def test_count_lines_valid_file():\n    assert count_lines('test.txt') == 3\n\ndef test_count_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert count_lines('empty.txt') == 0",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def count_lines(path):\n    with open(path, 'r') as f:\n        lines = f.readlines()\n    return len(lines)",
+          "test_code": "def test_count_lines_valid_file():\n    assert count_lines('test.txt') == 3\n\ndef test_count_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert count_lines('empty.txt') == 0",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def count_lines(path):\n    with open(path, 'r') as f:\n        lines = f.readlines()\n    return len(lines)",
+          "test_code": "def test_count_lines_valid_file():\n    assert count_lines('test.txt') == 3\n\ndef test_count_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert count_lines('empty.txt') == 0",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def count_lines(path):\n    with open(path, 'r') as f:\n        lines = f.readlines()\n    return len(lines)",
+          "test_code": "def test_count_lines_valid_file():\n    assert count_lines('test.txt') == 3\n\ndef test_count_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert count_lines('empty.txt') == 0",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "resource_leaks_04",
+      "category": "resource_leaks",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 59.03868879999936,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def read_stripped_lines(path):\n    with open(path) as f:\n        return [line.strip() for line in f]",
+          "test_code": "def test_read_stripped_lines():\n    assert read_stripped_lines('test.txt') == ['line1', 'line2']\n\ndef test_read_stripped_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_stripped_lines('empty.txt') == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def read_stripped_lines(path):\n    with open(path) as f:\n        return [line.strip() for line in f]",
+          "test_code": "def test_read_stripped_lines():\n    assert read_stripped_lines('test.txt') == ['line1', 'line2']\n\ndef test_read_stripped_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_stripped_lines('empty.txt') == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def read_stripped_lines(path):\n    with open(path) as f:\n        return [line.strip() for line in f]",
+          "test_code": "def test_read_stripped_lines():\n    assert read_stripped_lines('test.txt') == ['line1', 'line2']\n\ndef test_read_stripped_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_stripped_lines('empty.txt') == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def read_stripped_lines(path):\n    with open(path) as f:\n        return [line.strip() for line in f]",
+          "test_code": "def test_read_stripped_lines():\n    assert read_stripped_lines('test.txt') == ['line1', 'line2']\n\ndef test_read_stripped_lines_empty_file():\n    with open('empty.txt', 'w') as f:\n        pass\n    assert read_stripped_lines('empty.txt') == []",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "resource_leaks_05",
+      "category": "resource_leaks",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 44.87610880000284,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import json\n\nwith open(path) as f:\n    return json.load(f)",
+          "test_code": "def test_read_json_file():\n    assert read_json_file('test.json') == {'key': 'value'}\n\ndef test_read_json_file_empty_file():\n    with open('empty.json', 'w') as f:\n        f.write('{}')\n    assert read_json_file('empty.json') == {}",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "import json\n\ndef read_json_file(path):\n    with open(path) as f:\n        return json.load(f)",
+          "test_code": "def test_read_json_file():\n    assert read_json_file('test.json') == {'key': 'value'}\n\ndef test_read_json_file_empty_file():\n    with open('empty.json', 'w') as f:\n        f.write('{}')\n    assert read_json_file('empty.json') == {}",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "import json\n\ndef read_json_file(path):\n    with open(path) as f:\n        return json.load(f)",
+          "test_code": "def test_read_json_file(tmp_path):\n    file_path = tmp_path / 'test.json'\n    file_path.write_text('{",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "import json\n\ndef read_json_file(path):\n    with open(path, 'r') as f:\n        return json.load(f)",
+          "test_code": "def test_read_json_file(tmp_path):\n    file_path = tmp_path / 'test.json'\n    file_path.write_text('{",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "truthiness_coercion_01",
+      "category": "truthiness_coercion",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.860252700000274,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_page_size(config):\n    return config.get('page_size', 10)",
+          "test_code": "def test_get_page_size_with_configured_value():\n    assert get_page_size({'page_size': 5}) == 5\n\ndef test_get_page_size_with_no_configured_value():\n    assert get_page_size({}) == 10",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "truthiness_coercion_02",
+      "category": "truthiness_coercion",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 19.60811769999782,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_authenticated(user):\n    return user.get('id') is not None",
+          "test_code": "def test_is_authenticated_valid_user():\n    assert is_authenticated({'id': 1}) == True\n\ndef test_is_authenticated_invalid_user():\n    assert is_authenticated({'id': 0}) == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def is_authenticated(user):\n    return user.get('id') != 0",
+          "test_code": "def test_is_authenticated_valid_user():\n    assert is_authenticated({'id': 1}) == True\n\ndef test_is_authenticated_invalid_user():\n    assert is_authenticated({'id': 0}) == False",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "truthiness_coercion_03",
+      "category": "truthiness_coercion",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 43.83777159999954,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def validate_age(age):\n    if not age:\n        raise ValueError(\"age is required\")\n    return age",
+          "test_code": "def test_validate_age_valid_age():\n    assert validate_age(25) == 25\n\ndef test_validate_age_invalid_age():\n    with pytest.raises(ValueError):\n        validate_age(None)",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def validate_age(age):\n    if not age:\n        raise ValueError('age is required')\n    return age",
+          "test_code": "def test_validate_age_valid_age():\n    assert validate_age(25) == 25\n\ndef test_validate_age_invalid_age():\n    with pytest.raises(ValueError):\n        validate_age(None)",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def validate_age(age):\n    if not age:\n        raise ValueError('age is required')\n    return age",
+          "test_code": "def test_validate_age_valid_age():\n    assert validate_age(25) == 25\n\ndef test_validate_age_invalid_age():\n    with pytest.raises(ValueError):\n        validate_age(None)",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def validate_age(age):\n    if not age:\n        raise ValueError('age is required')\n    return age",
+          "test_code": "def test_validate_age_valid_age():\n    assert validate_age(25) == 25\n\ndef test_validate_age_invalid_age():\n    with pytest.raises(ValueError):\n        validate_age(None)",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "truthiness_coercion_04",
+      "category": "truthiness_coercion",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.07035950000136,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_balance_status(balance):\n    if balance is None:\n        return \"unknown\"\n    elif balance == 0.0:\n        return \"has balance\"\n    else:\n        return \"has balance\"",
+          "test_code": "def test_get_balance_status_valid_balance():\n    assert get_balance_status(10.5) == \"has balance\"\n\ndef test_get_balance_status_zero_balance():\n    assert get_balance_status(0.0) == \"has balance\"",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "swallowed_exceptions_01",
+      "category": "swallowed_exceptions",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.551932099999249,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_config_value(config, key):\n    try:\n        return config[key]\n    except KeyError:\n        return None",
+          "test_code": "def test_get_config_value_found():\n    assert get_config_value({'a': 1}, 'a') == 1\n\ndef test_get_config_value_missing():\n    assert get_config_value({}, 'b') is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "swallowed_exceptions_02",
+      "category": "swallowed_exceptions",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 13.864652200001728,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_first_positive(numbers):\n    try:\n        return next(n for n in numbers if n > 0)\n    except StopIteration:\n        return None",
+          "test_code": "def test_get_first_positive():\n    assert get_first_positive([1, -2, 3]) == 1\n    assert get_first_positive([-1, -2, -3]) is None\n\ndef test_get_first_positive_empty_list():\n    assert get_first_positive([]) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "swallowed_exceptions_03",
+      "category": "swallowed_exceptions",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 12.069160399998509,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_first_key(d):\n    try:\n        return next(iter(d.keys()))\n    except StopIteration:\n        return None",
+          "test_code": "def test_get_first_key():\n    assert get_first_key({'a': 1, 'b': 2}) == 'a'\n\ndef test_get_first_key_empty_dict():\n    assert get_first_key({}) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "swallowed_exceptions_04",
+      "category": "swallowed_exceptions",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 16.69590690000041,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def divide_all(values, divisor):\n    try:\n        return [v / divisor for v in values]\n    except ZeroDivisionError:\n        return []\n    except TypeError:\n        return []",
+          "test_code": "def test_divide_all_standard():\n    assert divide_all([10, 20, 30], 5) == [2.0, 4.0, 6.0]\n\ndef test_divide_all_zero_divisor():\n    assert divide_all([10, 20, 30], 0) == []",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "shallow_deep_copy_01",
+      "category": "shallow_deep_copy",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 17.143486500001018,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import copy\n\ndef clone_record(record):\n    return copy.deepcopy(record)",
+          "test_code": "def test_clone_record():\n    original = {'a': 1, 'b': {'c': 2}}\n    cloned = clone_record(original)\n    cloned['b']['c'] = 3\n    assert original == {'a': 1, 'b': {'c': 2}}\n\ndef test_clone_record_with_none():\n    original = {'a': None}\n    cloned = clone_record(original)\n    cloned['a'] = 1\n    assert original == {'a': None}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "shallow_deep_copy_02",
+      "category": "shallow_deep_copy",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.650193299999955,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def duplicate_matrix(matrix):\n    return [row[:] for row in matrix]",
+          "test_code": "def test_duplicate_matrix():\n    original = [[1, 2], [3, 4]]\n    duplicate = duplicate_matrix(original)\n    assert duplicate == original\n    assert duplicate is not original\n\n    assert duplicate_matrix([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "shallow_deep_copy_03",
+      "category": "shallow_deep_copy",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.658761199996661,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "class ShoppingCart:\n    def __init__(self, items):\n        self.items = items.copy()\n\n    def add_item(self, item):\n        self.items.append(item)",
+          "test_code": "def test_add_item():\n    cart = ShoppingCart(['apple', 'banana'])\n    cart.add_item('orange')\n    assert cart.items == ['apple', 'banana', 'orange']\n\ndef test_empty_cart():\n    cart = ShoppingCart([])\n    cart.add_item('apple')\n    assert cart.items == ['apple']",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "shallow_deep_copy_04",
+      "category": "shallow_deep_copy",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 24.350617600000987,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import copy\n\ndef merge_configs(base, extra):\n    merged = copy.deepcopy(base)\n    merged.update(extra)\n    return merged",
+          "test_code": "def test_merge_configs():\n    base = {'a': 1, 'b': {'c': 2}}\n    extra = {'b': {'c': 3}, 'd': 4}\n    result = merge_configs(base, extra)\n    assert result == {'a': 1, 'b': {'c': 3}, 'd': 4}\n    assert base == {'a': 1, 'b': {'c': 2}}\n\ndef test_merge_configs_with_none():\n    base = {'a': None}\n    extra = {'a': 1}\n    result = merge_configs(base, extra)\n    assert result == {'a': 1}\n    assert base == {'a': None}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "division_rounding_01",
+      "category": "division_rounding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.36578030000237,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def average_of_two(a, b):\n    return (a + b) / 2",
+          "test_code": "def test_average_of_two():\n    assert average_of_two(2, 4) == 3.0\n\ndef test_average_of_two_edge_case():\n    assert average_of_two(0.5, 1.5) == 1.0",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "division_rounding_02",
+      "category": "division_rounding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.628125700000965,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def calculate_full_batches(total_items, batch_size):\n    return total_items // batch_size",
+          "test_code": "def test_calculate_full_batches():\n    assert calculate_full_batches(10, 3) == 3\n\ndef test_calculate_full_batches_edge_case():\n    assert calculate_full_batches(0, 5) == 0",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "division_rounding_03",
+      "category": "division_rounding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.544516099998873,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def convert_seconds_to_minutes(seconds):\n    return int(seconds / 60)",
+          "test_code": "def test_convert_seconds_to_minutes():\n    assert convert_seconds_to_minutes(120) == 2\n\ndef test_convert_seconds_to_minutes_edge_case():\n    assert convert_seconds_to_minutes(0.999) == 0",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "division_rounding_04",
+      "category": "division_rounding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.014556899997842,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_remainder_items(total_items, group_size):\n    return total_items % group_size",
+          "test_code": "def test_get_remainder_items():\n    assert get_remainder_items(10, 3) == 1\n\ndef test_get_remainder_items_edge_case():\n    assert get_remainder_items(0, 1) == 0",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "string_formatting_01",
+      "category": "string_formatting",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 9.443981700002041,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def normalize_email(email):\n    return email.strip().lower()",
+          "test_code": "def test_normalize_email():\n    assert normalize_email('  example@Email.com  ') == 'example@email.com'\n\ndef test_normalize_email_empty_string():\n    assert normalize_email('') == ''",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "string_formatting_02",
+      "category": "string_formatting",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 9.174978700000793,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def make_slug(title):\n    return title.replace(' ', '-').lower()",
+          "test_code": "def test_make_slug():\n    assert make_slug('Hello World') == 'hello-world'\n\ndef test_make_slug_empty_string():\n    assert make_slug('') == ''",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "string_formatting_03",
+      "category": "string_formatting",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.86101620000045,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def truncate_with_ellipsis(text, max_length):\n    if text is None:\n        return None\n    return text[:max_length] + '...' if len(text) > max_length else text",
+          "test_code": "def test_truncate_with_ellipsis():\n    assert truncate_with_ellipsis('hello world', 5) == 'hello...'\n\ndef test_truncate_with_ellipsis_edge_case():\n    assert truncate_with_ellipsis(None, 10) is None",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "string_formatting_04",
+      "category": "string_formatting",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.806998100000783,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def csv_join(values):\n    return ','.join(str(value) for value in values)",
+          "test_code": "import pytest\n\ndef test_csv_join_standard():\n    assert csv_join([1, 2, 3]) == '1,2,3'\n\ndef test_csv_join_empty_list():\n    assert csv_join([]) == ''",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "closure_late_binding_01",
+      "category": "closure_late_binding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.259106400000746,
+      "peak_vram_mb": 2372.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def make_multipliers(n):\n    return [lambda x, i=i: x * i for i in range(n)]",
+          "test_code": "def test_make_multipliers():\n    multipliers = make_multipliers(5)\n    assert multipliers[0](1) == 0\n    assert multipliers[4](2) == 8\n\ndef test_make_multipliers_empty_list():\n    multipliers = make_multipliers(0)\n    assert multipliers == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "closure_late_binding_02",
+      "category": "closure_late_binding",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 96.01014209999994,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "\"\"\"Generates tag formatting functions for a given list of HTML tag names.\"\"\"\n\n\ndef make_taggers(tags):\n    taggers = {}\n    for tag in tags:\n        taggers[tag] = lambda content: f\"<{tag}>{content}</{tag}>\"\n    return taggers",
+          "test_code": "",
+          "passed_own_tests": null,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "\"\"\"Generates tag formatting functions for a given list of HTML tag names.\"\"\"\n\n\ndef make_taggers(tags):\n    taggers = {}\n    for tag in tags:\n        taggers[tag] = lambda content: f\"<{tag}>{content}</{tag}>\"\n    return taggers",
+          "test_code": "",
+          "passed_own_tests": null,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "\"\"\"Generates tag formatting functions for a given list of HTML tag names.\"\"\"\n\n\ndef make_taggers(tags):\n    taggers = {}\n    for tag in tags:\n        taggers[tag] = lambda content: f\"<{tag}>{content}</{tag}>\"\n    return taggers",
+          "test_code": "",
+          "passed_own_tests": null,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "\"\"\"Generates tag formatting functions for a given list of HTML tag names.\"\"\"\n\n\ndef make_taggers(tags):\n    taggers = {}\n    for tag in tags:\n        taggers[tag] = lambda content: f\"<{tag}>{content}</{tag}>\"\n    return taggers",
+          "test_code": "",
+          "passed_own_tests": null,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "closure_late_binding_03",
+      "category": "closure_late_binding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 21.554432500000985,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def create_field_validators(fields):\n    validators = {}\n    for field in fields:\n        field_name = field\n        validators[field_name] = lambda data, field=field_name: field in data and data[field] is not None\n    return validators",
+          "test_code": "def test_create_field_validators():\n    fields = ['name', 'age']\n    validators = create_field_validators(fields)\n    assert validators['name']({'name': 'John', 'age': 30})\n    assert not validators['age']({'name': 'John'})\n\n\ndef test_create_field_validators_empty_fields():\n    fields = []\n    validators = create_field_validators(fields)\n    assert validators == {}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "closure_late_binding_04",
+      "category": "closure_late_binding",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 98.20341480000207,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "\"\"\"Builds a sequence of adder functions where adder k adds k to its argument.\"\"\"\n\ndef make_adders(values):\n    adders = []\n    for val in values:\n        def adder(x):\n            return x + val\n        adders.append(adder)\n    return adders",
+          "test_code": "import pytest\n\nfrom make_adders import make_adders\n\ndef test_make_adders():\n    adders = make_adders([1, 2, 3])\n    assert adders[0](5) == 6\n    assert adders[1](5) == 7\n    assert adders[2](5) == 8\n\ndef test_make_adders_empty_list():\n    adders = make_adders([])\n    assert not adders",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "\"\"\"Builds a sequence of adder functions where adder k adds k to its argument.\"\"\"\n\ndef make_adders(values):\n    adders = []\n    for val in values:\n        def adder(x):\n            return x + val\n        adders.append(adder)\n    return adders",
+          "test_code": "import pytest\n\nfrom make_adders import make_adders\n\ndef test_make_adders():\n    adders = make_adders([1, 2, 3])\n    assert adders[0](5) == 6\n    assert adders[1](5) == 7\n    assert adders[2](5) == 8\n\ndef test_make_adders_empty_list():\n    adders = make_adders([])\n    assert not adders",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "\"\"\"Builds a sequence of adder functions where adder k adds k to its argument.\"\"\"\n\ndef make_adders(values):\n    adders = []\n    for val in values:\n        def adder(x):\n            return x + val\n        adders.append(adder)\n    return adders",
+          "test_code": "import pytest\n\nfrom make_adders import make_adders\n\ndef test_make_adders():\n    adders = make_adders([1, 2, 3])\n    assert adders[0](5) == 6\n    assert adders[1](5) == 7\n    assert adders[2](5) == 8\n\ndef test_make_adders_empty_list():\n    adders = make_adders([])\n    assert not adders",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "\"\"\"Builds a sequence of adder functions where adder k adds k to its argument.\"\"\"\n\ndef make_adders(values):\n    adders = []\n    for val in values:\n        def adder(x):\n            return x + val\n        adders.append(adder)\n    return adders",
+          "test_code": "import pytest\n\nfrom make_adders import make_adders\n\ndef test_make_adders():\n    adders = make_adders([1, 2, 3])\n    assert adders[0](5) == 6\n    assert adders[1](5) == 7\n    assert adders[2](5) == 8\n\ndef test_make_adders_empty_list():\n    adders = make_adders([])\n    assert not adders",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "closure_late_binding_05",
+      "category": "closure_late_binding",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 18.259199799998896,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def create_greeters(prefixes):\n    return [lambda name, prefix=prefix: f\"{prefix}, {name}!\" for prefix in prefixes]",
+          "test_code": "def test_create_greeters():\n    greeters = create_greeters(['Hello', 'Hi'])\n    assert greeters[0]('Alice') == 'Hello, Alice!'\n    assert greeters[1]('Bob') == 'Hi, Bob!'\n\n\ndef test_create_greeters_empty_prefixes():\n    greeters = create_greeters([])\n    assert not greeters",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "iteration_mutation_01",
+      "category": "iteration_mutation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.803013400000054,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def remove_evens(numbers):\n    i = 0\n    while i < len(numbers):\n        if numbers[i] % 2 == 0:\n            del numbers[i]\n        else:\n            i += 1\n    return numbers",
+          "test_code": "def test_remove_evens_standard():\n    assert remove_evens([1, 2, 3, 4, 5]) == [1, 3, 5]\n\ndef test_remove_evens_empty_list():\n    assert remove_evens([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "iteration_mutation_02",
+      "category": "iteration_mutation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.154904499999247,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def strip_none_keys(data):\n    for key, value in list(data.items()):\n        if value is None:\n            del data[key]\n    return data",
+          "test_code": "def test_strip_none_keys():\n    assert strip_none_keys({'a': 1, 'b': None, 'c': 3}) == {'a': 1, 'c': 3}\n\ndef test_strip_none_keys_empty_dict():\n    assert strip_none_keys({}) == {}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "iteration_mutation_03",
+      "category": "iteration_mutation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 20.51713920000111,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def filter_banned_words(words, banned):\n    for word in words[:]:\n        if word in banned:\n            words.remove(word)\n    return words",
+          "test_code": "def test_filter_banned_words():\n    words = ['apple', 'banana', 'cherry', 'date']\n    banned = ['banana', 'date']\n    assert filter_banned_words(words, banned) == ['apple', 'cherry']\n\ndef test_filter_banned_words_empty_banned_list():\n    words = ['apple', 'banana', 'cherry', 'date']\n    banned = []\n    assert filter_banned_words(words, banned) == ['apple', 'banana', 'cherry', 'date']",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "iteration_mutation_04",
+      "category": "iteration_mutation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 21.97202439999819,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "\"\"\"Removes inactive sessions from the active_sessions dictionary in-place.\"\"\"\n\ndef prune_inactive_sessions(sessions):\n    for session_id in list(sessions.keys()):\n        if not sessions[session_id].get(\"active\"):\n            del sessions[session_id]\n    return sessions",
+          "test_code": "import pytest\n\ndef test_prune_inactive_sessions():\n    sessions = {\n        '1': {'active': True},\n        '2': {'active': False}\n    }\n    prune_inactive_sessions(sessions)\n    assert sessions == {'1': {'active': True}}\n\ndef test_prune_inactive_sessions_empty_dict():\n    sessions = {}\n    prune_inactive_sessions(sessions)\n    assert sessions == {}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "iteration_mutation_05",
+      "category": "iteration_mutation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.683441799999855,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def remove_out_of_stock(cart):\n    cart[:] = [item for item in cart if item.get('quantity', 0) > 0]\n    return cart",
+          "test_code": "def test_remove_out_of_stock():\n    assert remove_out_of_stock([{'name': 'apple', 'quantity': 2}, {'name': 'banana', 'quantity': 0}]) == [{'name': 'apple', 'quantity': 2}]\n\ndef test_remove_out_of_stock_empty_cart():\n    assert remove_out_of_stock([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "identity_vs_equality_01",
+      "category": "identity_vs_equality",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 9.21722679999948,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_successful_status(status):\n    return status == \"COMPLETED\"",
+          "test_code": "def test_is_successful_status_success():\n    assert is_successful_status(\"COMPLETED\") == True\n\ndef test_is_successful_status_failure():\n    assert is_successful_status(\"PENDING\") == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "identity_vs_equality_02",
+      "category": "identity_vs_equality",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.158808000000136,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_standard_port(port):\n    return port == 8080",
+          "test_code": "def test_is_standard_port_valid_port():\n    assert is_standard_port(8080) == True\n\ndef test_is_standard_port_invalid_port():\n    assert is_standard_port(8081) == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "identity_vs_equality_03",
+      "category": "identity_vs_equality",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.683523800002149,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def are_same_coordinates(coord1, coord2):\n    return coord1 == coord2",
+          "test_code": "def test_are_same_coordinates_equal():\n    assert are_same_coordinates((1, 2), (1, 2)) == True\n\ndef test_are_same_coordinates_not_equal():\n    assert are_same_coordinates((1, 2), (2, 1)) == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "identity_vs_equality_04",
+      "category": "identity_vs_equality",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 13.379961300001014,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_redirect_code(code):\n    return code == 301 or code == 302",
+          "test_code": "def test_is_redirect_code():\n    assert is_redirect_code(301) == True\n    assert is_redirect_code(302) == True\n\ndef test_is_redirect_code_edge_case():\n    assert is_redirect_code(300) == False\n    assert is_redirect_code(303) == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "identity_vs_equality_05",
+      "category": "identity_vs_equality",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 9.325837500000489,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_supported_version(version):\n    return version == 'v2'",
+          "test_code": "def test_is_supported_version_true():\n    assert is_supported_version('v2') == True\n\ndef test_is_supported_version_false():\n    assert is_supported_version('v1') == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "generator_exhaustion_01",
+      "category": "generator_exhaustion",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 12.311448299999029,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def calculate_range(stream):\n    return max(stream) - min(stream)",
+          "test_code": "import pytest\n\ndef test_calculate_range():\n    assert calculate_range([1, 2, 3, 4, 5]) == 4\n\ndef test_calculate_range_empty_container():\n    with pytest.raises(ValueError):\n        calculate_range([])",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "generator_exhaustion_02",
+      "category": "generator_exhaustion",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.672430400001758,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def compute_stream_average(stream):\n    total = sum(stream)\n    count = len(list(stream))\n    return total / count if count > 0 else 0.0",
+          "test_code": "def test_compute_stream_average():\n    assert compute_stream_average([1, 2, 3, 4, 5]) == 3.0\n\ndef test_compute_stream_average_empty():\n    assert compute_stream_average([]) == 0.0",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "generator_exhaustion_03",
+      "category": "generator_exhaustion",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.4388543999994,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_positive_items(stream):\n    if any(x > 0 for x in stream):\n        return [x for x in stream if x > 0]\n    return []",
+          "test_code": "import pytest\n\ndef test_get_positive_items_standard():\n    assert get_positive_items([1, -2, 3, 4]) == [1, 3, 4]\n\ndef test_get_positive_items_empty_list():\n    assert get_positive_items([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "generator_exhaustion_04",
+      "category": "generator_exhaustion",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 39.32555599999978,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def join_stream_items(stream):\n    first = next(stream, None)\n    if first is None:\n        return \"\"\n    return \",\",",
+          "test_code": "",
+          "passed_own_tests": null,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def join_stream_items(stream):\n    first = next(stream, None)\n    if first is None:\n        return \"\"\n    return \",\",",
+          "test_code": "def test_empty_stream():\n    assert join_stream_items(iter([])) == ''\n\ndef test_single_item_stream():\n    assert join_stream_items(iter(['a'])) == 'a'",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def join_stream_items(stream):\n    first = next(stream, None)\n    if first is None:\n        return \"\"\n    return \",\".join(stream)",
+          "test_code": "def test_empty_stream():\n    assert join_stream_items(iter([])) == ''\n\ndef test_single_item_stream():\n    assert join_stream_items(iter(['a'])) == 'a'",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def join_stream_items(stream):\n    first = next(stream, None)\n    if first is None:\n        return \"\"\n    return \",\",",
+          "test_code": "def test_empty_stream():\n    assert join_stream_items(iter([])) == ''\n\ndef test_single_item_stream():\n    assert join_stream_items(iter(['a'])) == 'a'",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "generator_exhaustion_05",
+      "category": "generator_exhaustion",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 14.083516599999712,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def summarize_stream(stream):\n    total = len(list(stream))\n    unique = len(set(stream))\n    return total, unique",
+          "test_code": "def test_summarize_stream():\n    assert summarize_stream([1, 2, 3, 2, 1]) == (5, 3)\n\ndef test_summarize_stream_empty():\n    assert summarize_stream([]) == (0, 0)",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "string_strip_misuse_01",
+      "category": "string_strip_misuse",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 53.49407760000031,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def strip_file_extension(filename, ext):\n    if not filename or not ext:\n        return filename\n    if filename.endswith(ext):\n        return filename[:-len(ext)]\n    return filename",
+          "test_code": "def test_strip_file_extension():\n    assert strip_file_extension('example.txt', 'txt') == 'example'\n\ndef test_strip_file_extension_empty_filename():\n    assert strip_file_extension('', 'txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def strip_file_extension(filename, ext):\n    if not filename or not ext:\n        return filename\n    if filename.endswith(ext):\n        return filename[:-len(ext)]\n    return filename",
+          "test_code": "def test_strip_file_extension():\n    assert strip_file_extension('example.txt', 'txt') == 'example'\n\ndef test_strip_file_extension_empty_filename():\n    assert strip_file_extension('', 'txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def strip_file_extension(filename, ext):\n    if not filename or not ext:\n        return filename\n    if filename.endswith(ext):\n        return filename[:-len(ext)]\n    return filename",
+          "test_code": "def test_strip_file_extension():\n    assert strip_file_extension('example.txt', 'txt') == 'example'\n\ndef test_strip_file_extension_empty_filename():\n    assert strip_file_extension('', 'txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def strip_file_extension(filename, ext):\n    if not filename or not ext:\n        return filename\n    if filename.endswith(ext):\n        return filename[:-len(ext)]\n    return filename",
+          "test_code": "def test_strip_file_extension():\n    assert strip_file_extension('example.txt', 'txt') == 'example'\n\ndef test_strip_file_extension_empty_filename():\n    assert strip_file_extension('', 'txt') == ''",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "string_strip_misuse_02",
+      "category": "string_strip_misuse",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.001598500002729,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def strip_url_prefix(url):\n    return url.lstrip('https://')",
+          "test_code": "def test_strip_url_prefix():\n    assert strip_url_prefix('https://example.com') == 'example.com'\n\ndef test_strip_url_prefix_empty_string():\n    assert strip_url_prefix('') == ''",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "string_strip_misuse_03",
+      "category": "string_strip_misuse",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 12.190017600001738,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def strip_domain_suffix(domain):\n    if domain.endswith('.com'):\n        return domain[:-4]\n    return domain",
+          "test_code": "def test_strip_domain_suffix():\n    assert strip_domain_suffix('example.com') == 'example'\n\ndef test_strip_domain_suffix_no_suffix():\n    assert strip_domain_suffix('example.net') == 'example.net'",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "string_strip_misuse_04",
+      "category": "string_strip_misuse",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.11277759999939,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def strip_log_tag(log_line):\n    return log_line.lstrip('[ERROR] ')",
+          "test_code": "def test_strip_log_tag_standard():\n    assert strip_log_tag('[ERROR] This is an error message') == 'This is an error message'\n\ndef test_strip_log_tag_empty_string():\n    assert strip_log_tag('') == ''",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "string_strip_misuse_05",
+      "category": "string_strip_misuse",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.073633200001495,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "\"\"\"Removes the '.html' suffix from a web path.\"\"\"\n\ndef strip_html_suffix(path):\n    if path.endswith('.html'):\n        return path[:-5]\n    return path",
+          "test_code": "def test_strip_html_suffix():\n    assert strip_html_suffix('/path/to/page.html') == '/path/to/page'\n\ndef test_strip_html_suffix_no_suffix():\n    assert strip_html_suffix('/path/to/page') == '/path/to/page'",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "zip_truncation_01",
+      "category": "zip_truncation",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 71.25309919999927,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def pair_coordinates(xs, ys):\n    if len(xs) != len(ys):\n        raise ValueError('Coordinate lists must have equal length')\n    return list(zip(xs, ys))",
+          "test_code": "def test_pair_coordinates():\n    assert pair_coordinates([1, 2, 3], ['a', 'b', 'c']) == [(1, 'a'), (2, 'b'), (3, 'c')]\n\ndef test_pair_coordinates_with_mismatched_lengths():\n    with pytest.raises(ValueError):\n        pair_coordinates([1, 2], ['a', 'b', 'c'])",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def pair_coordinates(xs, ys):\n    if len(xs) != len(ys):\n        raise ValueError('Coordinate lists must have equal length')\n    return list(zip(xs, ys))",
+          "test_code": "def test_pair_coordinates_with_mismatched_lengths():\n    with pytest.raises(ValueError):\n        pair_coordinates([1, 2], ['a', 'b', 'c'])\n\ndef test_pair_coordinates_with_matching_lengths():\n    assert pair_coordinates([1, 2, 3], ['a', 'b', 'c']) == [(1, 'a'), (2, 'b'), (3, 'c')]",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def pair_coordinates(xs, ys):\n    if len(xs) != len(ys):\n        raise ValueError('Coordinate lists must have equal length')\n    return list(zip(xs, ys))",
+          "test_code": "def test_pair_coordinates_with_mismatched_lengths():\n    with pytest.raises(ValueError):\n        pair_coordinates([1, 2], ['a', 'b', 'c'])\n\ndef test_pair_coordinates_with_matching_lengths():\n    assert pair_coordinates([1, 2, 3], ['a', 'b', 'c']) == [(1, 'a'), (2, 'b'), (3, 'c')]",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def pair_coordinates(xs, ys):\n    if len(xs) != len(ys):\n        raise ValueError('Coordinate lists must have equal length')\n    return list(zip(xs, ys))",
+          "test_code": "def test_pair_coordinates_with_mismatched_lengths():\n    with pytest.raises(ValueError):\n        pair_coordinates([1, 2], ['a', 'b', 'c'])\n\ndef test_pair_coordinates_with_matching_lengths():\n    assert pair_coordinates([1, 2, 3], ['a', 'b', 'c']) == [(1, 'a'), (2, 'b'), (3, 'c')]",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "zip_truncation_02",
+      "category": "zip_truncation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 19.341064299998834,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def calculate_dot_product(vec1, vec2):\n    if len(vec1) != len(vec2):\n        raise ValueError('Vectors must have the same dimension')\n    return sum(a * b for a, b in zip(vec1, vec2))",
+          "test_code": "import pytest\n\ndef test_calculate_dot_product():\n    assert calculate_dot_product([1, 2, 3], [4, 5, 6]) == 32\n\ndef test_calculate_dot_product_with_different_dimensions():\n    with pytest.raises(ValueError):\n        calculate_dot_product([1, 2], [3, 4, 5])",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "zip_truncation_03",
+      "category": "zip_truncation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 21.21997040000133,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def map_headers_to_row(headers, row):\n    if len(headers) != len(row):\n        raise ValueError('Headers and row must have the same length')\n    return dict(zip(headers, row))",
+          "test_code": "import pytest\n\ndef test_map_headers_to_row():\n    headers = ['name', 'age']\n    row = ['Alice', 30]\n    assert map_headers_to_row(headers, row) == {'name': 'Alice', 'age': 30}\n\ndef test_map_headers_to_row_length_mismatch():\n    headers = ['name', 'age']\n    row = ['Alice']\n    with pytest.raises(ValueError):\n        map_headers_to_row(headers, row)",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "zip_truncation_04",
+      "category": "zip_truncation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 20.827716300002066,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def combine_scores(names, scores):\n    if len(names) != len(scores):\n        raise ValueError('Names and scores lists must be of the same length')\n    return dict(zip(names, scores))",
+          "test_code": "import pytest\n\ndef test_combine_scores():\n    names = ['Alice', 'Bob', 'Charlie']\n    scores = [85, 90, 78]\n    assert combine_scores(names, scores) == {'Alice': 85, 'Bob': 90, 'Charlie': 78}\n\ndef test_combine_scores_with_empty_lists():\n    names = []\n    scores = []\n    assert combine_scores(names, scores) == {}",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "zip_truncation_05",
+      "category": "zip_truncation",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 18.93378379999922,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def check_matching_answers(user_answers, key):\n    if len(user_answers) != len(key):\n        raise ValueError('Lists must be equal length')\n    return sum(1 for u, k in zip(user_answers, key) if u == k)",
+          "test_code": "import pytest\n\ndef test_check_matching_answers():\n    assert check_matching_answers(['a', 'b', 'c'], ['a', 'b', 'c']) == 3\n\ndef test_check_matching_answers_length_mismatch():\n    with pytest.raises(ValueError):\n        check_matching_answers(['a', 'b', 'c'], ['a', 'b'])",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "sort_inplace_return_none_01",
+      "category": "sort_inplace_return_none",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.775197500002832,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_sorted_scores(scores):\n    return sorted(scores, reverse=True)",
+          "test_code": "def test_get_sorted_scores():\n    assert get_sorted_scores([10, 5, 20, 15]) == [20, 15, 10, 5]\n\ndef test_get_sorted_scores_empty_list():\n    assert get_sorted_scores([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "sort_inplace_return_none_02",
+      "category": "sort_inplace_return_none",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.56651800000327,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_alphabetical_tags(tags):\n    return sorted(tags)",
+          "test_code": "def test_get_alphabetical_tags():\n    assert get_alphabetical_tags(['banana', 'apple', 'cherry']) == ['apple', 'banana', 'cherry']\n\ndef test_get_alphabetical_tags_empty_list():\n    assert get_alphabetical_tags([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "sort_inplace_return_none_03",
+      "category": "sort_inplace_return_none",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 16.407780100002128,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def sort_users_by_age(users):\n    return sorted(users, key=lambda u: u['age'])",
+          "test_code": "def test_sort_users_by_age():\n    users = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\n    assert sort_users_by_age(users) == [{'name': 'Bob', 'age': 25}, {'name': 'Alice', 'age': 30}]\n\ndef test_sort_users_by_age_empty_list():\n    assert sort_users_by_age([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "sort_inplace_return_none_04",
+      "category": "sort_inplace_return_none",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.662700400000176,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def sort_transactions_by_amount(transactions):\n    return sorted(transactions, key=lambda t: t['amount'], reverse=True)",
+          "test_code": "def test_sort_transactions_by_amount():\n    transactions = [{'amount': 10}, {'amount': 5}, {'amount': 20}]\n    assert sort_transactions_by_amount(transactions) == [{'amount': 20}, {'amount': 10}, {'amount': 5}]\n\ndef test_sort_transactions_by_amount_empty_list():\n    assert sort_transactions_by_amount([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "sort_inplace_return_none_05",
+      "category": "sort_inplace_return_none",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.22840670000005,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_ranked_items(items):\n    return sorted(items)",
+          "test_code": "def test_get_ranked_items_standard_behavior():\n    assert get_ranked_items(['banana', 'apple', 'cherry']) == ['apple', 'banana', 'cherry']\n\ndef test_get_ranked_items_empty_list():\n    assert get_ranked_items([]) == []",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "bitwise_vs_logical_operators_01",
+      "category": "bitwise_vs_logical_operators",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 12.148385699998471,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_in_valid_range(x, low, high):\n    return x >= low and x <= high",
+          "test_code": "def test_is_in_valid_range_standard():\n    assert is_in_valid_range(5, 1, 10) == True\n\ndef test_is_in_valid_range_boundary():\n    assert is_in_valid_range(10, 10, 10) == True",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "bitwise_vs_logical_operators_02",
+      "category": "bitwise_vs_logical_operators",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.78898179999669,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_valid_dimension(width, height):\n    return width > 0 and height > 0",
+          "test_code": "def test_is_valid_dimension_valid_dimensions():\n    assert is_valid_dimension(10, 5) == True\n\ndef test_is_valid_dimension_zero_dimensions():\n    assert is_valid_dimension(0, 5) == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "bitwise_vs_logical_operators_03",
+      "category": "bitwise_vs_logical_operators",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.251942300001247,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_even_and_positive(num):\n    return num > 0 and num % 2 == 0",
+          "test_code": "def test_is_even_and_positive():\n    assert is_even_and_positive(4) == True\n\ndef test_is_even_and_positive_boundary():\n    assert is_even_and_positive(-2) == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "bitwise_vs_logical_operators_04",
+      "category": "bitwise_vs_logical_operators",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.856726200003322,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_accessible(is_admin, is_owner):\n    return is_admin or is_owner == True",
+          "test_code": "def test_is_accessible_standard():\n    assert is_accessible(True, False) == True\n    assert is_accessible(False, True) == True\n    assert is_accessible(False, False) == False\n\ndef test_is_accessible_boundary():\n    assert is_accessible(None, None) == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "bitwise_vs_logical_operators_05",
+      "category": "bitwise_vs_logical_operators",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 10.993384599998535,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def is_valid_percentage(val):\n    return val >= 0.0 and val <= 100.0",
+          "test_code": "def test_is_valid_percentage_valid():\n    assert is_valid_percentage(50.0) == True\n\ndef test_is_valid_percentage_boundary():\n    assert is_valid_percentage(100.0) == True",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "unhashable_collections_01",
+      "category": "unhashable_collections",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 52.62155029999849,
+      "peak_vram_mb": 2374.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_unique_records(records):\n    return list({tuple(record.items()) for record in records})",
+          "test_code": "def test_get_unique_records():\n    assert get_unique_records([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_get_unique_records_empty_list():\n    assert get_unique_records([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def get_unique_records(records):\n    return list({tuple(record.items()) for record in records})",
+          "test_code": "def test_get_unique_records():\n    assert get_unique_records([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_get_unique_records_empty_list():\n    assert get_unique_records([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def get_unique_records(records):\n    return list({tuple(record.items()) for record in records})",
+          "test_code": "def test_get_unique_records():\n    assert get_unique_records([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_get_unique_records_empty_list():\n    assert get_unique_records([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def get_unique_records(records):\n    return list({tuple(record.items()) for record in records})",
+          "test_code": "def test_get_unique_records():\n    assert get_unique_records([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_get_unique_records_empty_list():\n    assert get_unique_records([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "unhashable_collections_02",
+      "category": "unhashable_collections",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 53.18123140000171,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def deduplicate_coordinate_paths(paths):\n    return list({tuple(path) for path in paths})",
+          "test_code": "def test_deduplicate_coordinate_paths():\n    assert deduplicate_coordinate_paths([[1, 2], [3, 4], [1, 2]]) == [[1, 2], [3, 4]]\n\ndef test_deduplicate_coordinate_paths_empty_list():\n    assert deduplicate_coordinate_paths([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def deduplicate_coordinate_paths(paths):\n    return list({tuple(path) for path in paths})",
+          "test_code": "def test_deduplicate_coordinate_paths():\n    assert deduplicate_coordinate_paths([[1, 2], [3, 4], [1, 2]]) == [[1, 2], [3, 4]]\n\ndef test_deduplicate_coordinate_paths_empty_list():\n    assert deduplicate_coordinate_paths([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def deduplicate_coordinate_paths(paths):\n    return list({tuple(path) for path in paths})",
+          "test_code": "def test_deduplicate_coordinate_paths():\n    assert deduplicate_coordinate_paths([[1, 2], [3, 4], [1, 2]]) == [[1, 2], [3, 4]]\n\ndef test_deduplicate_coordinate_paths_empty_list():\n    assert deduplicate_coordinate_paths([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def deduplicate_coordinate_paths(paths):\n    return list({tuple(path) for path in paths})",
+          "test_code": "def test_deduplicate_coordinate_paths():\n    assert deduplicate_coordinate_paths([[1, 2], [3, 4], [1, 2]]) == [[1, 2], [3, 4]]\n\ndef test_deduplicate_coordinate_paths_empty_list():\n    assert deduplicate_coordinate_paths([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "unhashable_collections_03",
+      "category": "unhashable_collections",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 84.42828419999933,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def find_distinct_user_profiles(users):\n    return list({tuple(user.items()) for user in users})",
+          "test_code": "def test_find_distinct_user_profiles():\n    users = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}, {'name': 'Alice', 'age': 30}]\n    expected = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\n    assert find_distinct_user_profiles(users) == expected\n\ndef test_find_distinct_user_profiles_empty():\n    users = []\n    expected = []\n    assert find_distinct_user_profiles(users) == expected",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def find_distinct_user_profiles(users):\n    return list({tuple(user.items()) for user in users})",
+          "test_code": "def test_find_distinct_user_profiles():\n    users = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}, {'name': 'Alice', 'age': 30}]\n    expected = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\n    assert find_distinct_user_profiles(users) == expected\n\ndef test_find_distinct_user_profiles_empty():\n    users = []\n    expected = []\n    assert find_distinct_user_profiles(users) == expected",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def find_distinct_user_profiles(users):\n    return list({tuple(user.items()) for user in users})",
+          "test_code": "def test_find_distinct_user_profiles():\n    users = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}, {'name': 'Alice', 'age': 30}]\n    expected = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\n    assert find_distinct_user_profiles(users) == expected\n\ndef test_find_distinct_user_profiles_empty():\n    users = []\n    expected = []\n    assert find_distinct_user_profiles(users) == expected",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def find_distinct_user_profiles(users):\n    return list({tuple(user.items()) for user in users})",
+          "test_code": "def test_find_distinct_user_profiles():\n    users = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}, {'name': 'Alice', 'age': 30}]\n    expected = [{'name': 'Alice', 'age': 30}, {'name': 'Bob', 'age': 25}]\n    assert find_distinct_user_profiles(users) == expected\n\ndef test_find_distinct_user_profiles_empty():\n    users = []\n    expected = []\n    assert find_distinct_user_profiles(users) == expected",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "unhashable_collections_04",
+      "category": "unhashable_collections",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 15.758335800001078,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_unique_matrix_rows(matrix):\n    return [list(row) for row in set(tuple(row) for row in matrix)]",
+          "test_code": "def test_get_unique_matrix_rows():\n    assert get_unique_matrix_rows([[1, 2], [3, 4], [1, 2]]) == [[1, 2], [3, 4]]\n\ndef test_get_unique_matrix_rows_empty_row():\n    assert get_unique_matrix_rows([[1, 2], [], [1, 2]]) == [[1, 2], []]",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "unhashable_collections_05",
+      "category": "unhashable_collections",
+      "passed_oracle": false,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 56.079592500002036,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def deduplicate_payloads(payloads):\n    return list({tuple(payload.items()) for payload in payloads})",
+          "test_code": "def test_deduplicate_payloads():\n    assert deduplicate_payloads([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_deduplicate_payloads_empty_list():\n    assert deduplicate_payloads([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def deduplicate_payloads(payloads):\n    return list({tuple(sorted(payload.items())) for payload in payloads})",
+          "test_code": "def test_deduplicate_payloads():\n    assert deduplicate_payloads([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_deduplicate_payloads_empty_list():\n    assert deduplicate_payloads([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def deduplicate_payloads(payloads):\n    return list({tuple(sorted(payload.items())) for payload in payloads})",
+          "test_code": "def test_deduplicate_payloads():\n    assert deduplicate_payloads([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_deduplicate_payloads_empty_list():\n    assert deduplicate_payloads([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def deduplicate_payloads(payloads):\n    return list({tuple(sorted(payload.items())) for payload in payloads})",
+          "test_code": "def test_deduplicate_payloads():\n    assert deduplicate_payloads([{'a': 1}, {'b': 2}, {'a': 1}]) == [{'a': 1}, {'b': 2}]\n\ndef test_deduplicate_payloads_empty_list():\n    assert deduplicate_payloads([]) == []",
+          "passed_own_tests": false,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "regex_special_chars_01",
+      "category": "regex_special_chars",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.010820800001966,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import re\n\ndef matches_file_extension(filename, ext):\n    return bool(re.search(rf'{ext}$', filename))",
+          "test_code": "def test_matches_file_extension():\n    assert matches_file_extension('example.txt', 'txt') == True\n\ndef test_matches_file_extension_empty_filename():\n    assert matches_file_extension('', 'txt') == False",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "regex_special_chars_02",
+      "category": "regex_special_chars",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 52.71968370000104,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import re\n\ndef contains_exact_subpattern(text, sub):\n    return bool(re.search(r'\\b' + re.escape(sub) + r'\\b', text))",
+          "test_code": "def test_contains_exact_subpattern():\n    assert contains_exact_subpattern('hello world', 'world') == True\n\ndef test_contains_exact_subpattern_edge_case():\n    assert contains_exact_subpattern('hello world', 'hello') == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "import re\n\ndef contains_exact_subpattern(text, sub):\n    return bool(re.search(r'\\b' + re.escape(sub) + r'\\b', text))",
+          "test_code": "def test_contains_exact_subpattern():\n    assert contains_exact_subpattern('hello world', 'world') == True\n\ndef test_contains_exact_subpattern_edge_case():\n    assert contains_exact_subpattern('hello world', 'hello') == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "import re\n\ndef contains_exact_subpattern(text, sub):\n    return bool(re.search(r'\\b' + re.escape(sub) + r'\\b', text))",
+          "test_code": "def test_contains_exact_subpattern():\n    assert contains_exact_subpattern('hello world', 'world') == True\n\ndef test_contains_exact_subpattern_edge_case():\n    assert contains_exact_subpattern('hello world', 'hello') == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "import re\n\ndef contains_exact_subpattern(text, sub):\n    return bool(re.search(r'\\b' + re.escape(sub) + r'\\b', text))",
+          "test_code": "def test_contains_exact_subpattern():\n    assert contains_exact_subpattern('hello world', 'world') == True\n\ndef test_contains_exact_subpattern_edge_case():\n    assert contains_exact_subpattern('hello world', 'hello') == False",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "regex_special_chars_03",
+      "category": "regex_special_chars",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 13.635327399999369,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import re\n\ndef starts_with_tag(text, tag):\n    return bool(re.match(f'^{re.escape(tag)}', text))",
+          "test_code": "def test_starts_with_tag():\n    assert starts_with_tag('[v1]', '[v1]') == True\n    assert starts_with_tag('no tag here', '[v1]') == False\n\ndef test_starts_with_tag_edge_case():\n    assert starts_with_tag('', '[v1]') == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "regex_special_chars_04",
+      "category": "regex_special_chars",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 11.870824099998572,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import re\n\ndef is_matching_domain(email, domain):\n    return bool(re.search(rf'@{re.escape(domain)}$', email))",
+          "test_code": "def test_is_matching_domain():\n    assert is_matching_domain('user@example.com', 'example.com') == True\n\ndef test_is_matching_domain_edge_case():\n    assert is_matching_domain('user@example.com', '') == False",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "regex_special_chars_05",
+      "category": "regex_special_chars",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 12.458851600000344,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "import re\n\ndef count_keyword_occurrences(text, keyword):\n    return len(re.findall(keyword, text))",
+          "test_code": "def test_count_keyword_occurrences():\n    assert count_keyword_occurrences('hello world', 'world') == 1\n\ndef test_count_keyword_occurrences_empty_string():\n    assert count_keyword_occurrences('', 'test') == 0",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "incorrect_boundary_conditions_01",
+      "category": "incorrect_boundary_conditions",
+      "passed_oracle": false,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 19.603530300002603,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def get_letter_grade(score):\n    if score > 90:\n        return 'A'\n    elif score > 80:\n        return 'B'\n    elif score > 70:\n        return 'C'\n    else:\n        return 'F'",
+          "test_code": "def test_get_letter_grade():\n    assert get_letter_grade(95) == 'A'\n    assert get_letter_grade(75) == 'C'\n\ndef test_get_letter_grade_edge_case():\n    assert get_letter_grade(100) == 'A'\n    assert get_letter_grade(69) == 'F'",
+          "passed_own_tests": true,
+          "passed_oracle": false
+        }
+      ]
+    },
+    {
+      "defect_id": "incorrect_boundary_conditions_02",
+      "category": "incorrect_boundary_conditions",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 64.12228070000128,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def _meets_min_length(password, min_length):\n    return len(password) >= min_length\n\ndef validate_password(password):\n    if not _meets_min_length(password, 8):\n        raise ValueError(\"password too short\")\n    return True",
+          "test_code": "def test_validate_password_valid_password():\n    assert validate_password('12345678') == True\n\ndef test_validate_password_too_short_password():\n    with pytest.raises(ValueError):\n        validate_password('1234567')",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def _meets_min_length(password, min_length):\n    return len(password) >= min_length\n\ndef validate_password(password):\n    if not _meets_min_length(password, 8):\n        raise ValueError('password too short')\n    return True",
+          "test_code": "def test_validate_password_valid_password():\n    assert validate_password('12345678') == True\n\ndef test_validate_password_too_short_password():\n    with pytest.raises(ValueError):\n        validate_password('1234567')",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def _meets_min_length(password, min_length):\n    return len(password) >= min_length\n\ndef validate_password(password):\n    if not _meets_min_length(password, 8):\n        raise ValueError('password too short')\n    return True",
+          "test_code": "def test_validate_password_valid_password():\n    assert validate_password('12345678') == True\n\ndef test_validate_password_too_short_password():\n    with pytest.raises(ValueError):\n        validate_password('1234567')",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def _meets_min_length(password, min_length):\n    return len(password) >= min_length\n\ndef validate_password(password):\n    if not _meets_min_length(password, 8):\n        raise ValueError('password too short')\n    return True",
+          "test_code": "def test_validate_password_valid_password():\n    assert validate_password('12345678') == True\n\ndef test_validate_password_too_short_password():\n    with pytest.raises(ValueError):\n        validate_password('1234567')",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "incorrect_boundary_conditions_03",
+      "category": "incorrect_boundary_conditions",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 0,
+      "max_retries": 3,
+      "duration_sec": 13.3021731000008,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def _qualifies_for_discount(total):\n    return total >= 100\n\ndef get_discount_percent(total):\n    if _qualifies_for_discount(total):\n        return 10\n    return 0",
+          "test_code": "def test_get_discount_percent():\n    assert get_discount_percent(100) == 10\n    assert get_discount_percent(99) == 0",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "incorrect_boundary_conditions_04",
+      "category": "incorrect_boundary_conditions",
+      "passed_oracle": true,
+      "passed_own_tests": false,
+      "retry_count": 3,
+      "max_retries": 3,
+      "duration_sec": 87.1422578999991,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def _total_pages(item_count, page_size):\n    return (item_count + page_size - 1) // page_size\n\ndef is_valid_page(page, item_count, page_size):\n    total = _total_pages(item_count, page_size)\n    return 0 <= page < total",
+          "test_code": "def test_is_valid_page_valid_page():\n    assert is_valid_page(0, 10, 10) == True\n    assert is_valid_page(5, 10, 10) == True\n\n\ndef test_is_valid_page_invalid_page():\n    assert is_valid_page(10, 10, 10) == False\n    assert is_valid_page(-1, 10, 10) == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def is_valid_page(page, item_count, page_size):\n    total = _total_pages(item_count, page_size)\n    return 0 <= page < total",
+          "test_code": "def test_is_valid_page_valid_page():\n    assert is_valid_page(0, 10, 10) == True\n    assert is_valid_page(5, 10, 10) == True\n\ndef test_is_valid_page_invalid_page():\n    assert is_valid_page(10, 10, 10) == False\n    assert is_valid_page(-1, 10, 10) == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 2,
+          "patch_code": "def is_valid_page(page, item_count, page_size):\n    total = _total_pages(item_count, page_size)\n    return 0 <= page < total\n\ndef _total_pages(item_count, page_size):\n    return (item_count + page_size - 1) // page_size",
+          "test_code": "def test_is_valid_page_valid_page():\n    assert is_valid_page(0, 10, 10) == True\n    assert is_valid_page(5, 10, 10) == True\n\ndef test_is_valid_page_invalid_page():\n    assert is_valid_page(10, 10, 10) == False\n    assert is_valid_page(-1, 10, 10) == False",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 3,
+          "patch_code": "def is_valid_page(page, item_count, page_size):\n    total = _total_pages(item_count, page_size)\n    return 0 <= page < total\n\ndef _total_pages(item_count, page_size):\n    return (item_count + page_size - 1) // page_size",
+          "test_code": "def test_is_valid_page_valid_page():\n    assert is_valid_page(0, 10, 10) == True\n    assert is_valid_page(5, 10, 10) == True\n\ndef test_is_valid_page_invalid_page():\n    assert is_valid_page(10, 10, 10) == False\n    assert is_valid_page(-1, 10, 10) == False",
+          "passed_own_tests": false,
+          "passed_oracle": true
+        }
+      ]
+    },
+    {
+      "defect_id": "incorrect_boundary_conditions_05",
+      "category": "incorrect_boundary_conditions",
+      "passed_oracle": true,
+      "passed_own_tests": true,
+      "retry_count": 1,
+      "max_retries": 3,
+      "duration_sec": 39.22252370000206,
+      "peak_vram_mb": 2402.50390625,
+      "gpu_available": true,
+      "error": null,
+      "attempts": [
+        {
+          "attempt": 0,
+          "patch_code": "def _is_senior(age):\n    return age >= 65\n\ndef get_age_category(age):\n    if _is_senior(age):\n        return \"senior\"\n    elif age >= 18:\n        return \"adult\"\n    else:\n        return \"minor\"",
+          "test_code": "def test_get_age_category():\n    assert get_age_category(65) == \"senior\"\n    assert get_age_category(18) == \"adult\"\n\n\ndef test_get_age_category_edge_case():\n    assert get_age_category(17) == \"minor\"\n    assert get_age_category(64) == \"minor\"",
+          "passed_own_tests": false,
+          "passed_oracle": null
+        },
+        {
+          "attempt": 1,
+          "patch_code": "def _is_senior(age):\n    return age >= 65\n\ndef get_age_category(age):\n    if _is_senior(age):\n        return \"senior\"\n    elif age >= 18:\n        return \"adult\"\n    else:\n        return \"minor\"",
+          "test_code": "def test_get_age_category():\n    assert get_age_category(65) == \"senior\"\n    assert get_age_category(18) == \"adult\"\n\ndef test_get_age_category_edge_case():\n    assert get_age_category(17) == \"minor\"\n    assert get_age_category(64) == \"adult\"",
+          "passed_own_tests": true,
+          "passed_oracle": true
+        }
+      ]
+    }
+  ]
+}

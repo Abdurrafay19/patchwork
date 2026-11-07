@@ -8,6 +8,7 @@ since this module's entire job is correctly wiring those together.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -147,3 +148,49 @@ class TestEvaluateAll:
 
     def test_rates_are_fractions_of_total(self, summary: EvaluationSummary) -> None:
         assert summary.pass_overall_rate == summary.pass_overall / summary.total_defects
+
+    def test_summary_includes_model_field(self, summary: EvaluationSummary) -> None:
+        from patchwork.graph import DEFAULT_MODEL
+
+        assert summary.model == DEFAULT_MODEL
+
+
+class TestEvaluateMain:
+    def test_main_parses_model_and_timeout(self, tmp_path: Path) -> None:
+        from benchmarks.evaluate import main as eval_main
+
+        output_path = tmp_path / "results_test.json"
+        mock_summary = MagicMock()
+        mock_llm = MagicMock()
+
+        with (
+            patch(
+                "benchmarks.evaluate.build_structured_llm", return_value=mock_llm
+            ) as mock_build,
+            patch(
+                "benchmarks.evaluate.evaluate_all", return_value=mock_summary
+            ) as mock_eval,
+            patch("benchmarks.evaluate.save_results") as mock_save,
+            patch("benchmarks.evaluate._print_summary"),
+            patch(
+                "sys.argv",
+                [
+                    "evaluate.py",
+                    "--output",
+                    str(output_path),
+                    "--model",
+                    "custom:7b",
+                    "--timeout",
+                    "90.0",
+                ],
+            ),
+        ):
+            eval_main()
+
+        mock_build.assert_called_once_with(model="custom:7b", timeout=90.0)
+        mock_eval.assert_called_once_with(
+            mock_llm,
+            console=mock_eval.call_args.kwargs["console"],
+            model_name="custom:7b",
+        )
+        mock_save.assert_called_once_with(mock_summary, path=output_path)

@@ -58,6 +58,16 @@ class TestParseArgs:
         args = _parse_args(["audit", "target.py", "--output-dir", "out"])
         assert args.output_dir == Path("out")
 
+    def test_model_defaults_to_project_default(self) -> None:
+        from patchwork.graph import DEFAULT_MODEL
+
+        args = _parse_args(["audit", "target.py"])
+        assert args.model == DEFAULT_MODEL
+
+    def test_model_can_be_overridden(self) -> None:
+        args = _parse_args(["audit", "target.py", "--model", "custom-model:7b"])
+        assert args.model == "custom-model:7b"
+
     def test_missing_command_exits_nonzero(self) -> None:
         with pytest.raises(SystemExit):
             _parse_args([])
@@ -110,6 +120,21 @@ class TestRunAudit:
             result = _run_audit(Path("target.py"), "x = 1", max_retries=2)
 
         assert result["max_retries"] == 2
+
+    def test_passes_model_into_build_structured_llm(self) -> None:
+        initial = create_initial_state("target.py", "x = 1")
+        fake_graph = MagicMock()
+        fake_graph.stream.return_value = iter([initial])
+
+        with (
+            patch("patchwork.cli.build_structured_llm") as mock_build_llm,
+            patch("patchwork.cli.build_patchwork_graph", return_value=fake_graph),
+        ):
+            _run_audit(
+                Path("target.py"), "x = 1", max_retries=0, model="custom-model:7b"
+            )
+
+        mock_build_llm.assert_called_once_with(model="custom-model:7b")
 
 
 class TestWriteOutputs:
@@ -239,6 +264,28 @@ class TestMain:
             )
 
         assert mock_run_audit.call_args[0][2] == 5
+
+    def test_main_passes_model_to_run_audit(self, tmp_path: Path) -> None:
+        target = tmp_path / "target.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+        final_state = create_initial_state(str(target), "x = 1\n")
+        final_state["sandbox_result"] = MagicMock(passed=True)
+
+        with patch(
+            "patchwork.cli._run_audit", return_value=final_state
+        ) as mock_run_audit:
+            main(
+                [
+                    "audit",
+                    str(target),
+                    "--model",
+                    "custom-model:7b",
+                    "--output-dir",
+                    str(tmp_path),
+                ]
+            )
+
+        assert mock_run_audit.call_args.kwargs.get("model") == "custom-model:7b"
 
     def test_ollama_connection_error_returns_1_with_clean_message(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]

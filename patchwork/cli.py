@@ -63,6 +63,12 @@ def _parse_args(argv: list[str] | None = None) -> Namespace:
         default=Path.cwd(),
         help="Directory to write the patched file and test suite into (default: cwd).",
     )
+    audit_parser.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_MODEL,
+        help=f"Ollama model name to use (default: {DEFAULT_MODEL}).",
+    )
 
     return parser.parse_args(argv)
 
@@ -71,10 +77,15 @@ def _read_target(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _run_audit(target_path: Path, source: str, max_retries: int) -> AgentState:
+def _run_audit(
+    target_path: Path,
+    source: str,
+    max_retries: int,
+    model: str = DEFAULT_MODEL,
+) -> AgentState:
     configure_json_logging()
-    console.print(f"[cyan]Building structured LLM client ({DEFAULT_MODEL})...[/cyan]")
-    structured_llm = build_structured_llm()
+    console.print(f"[cyan]Building structured LLM client ({model})...[/cyan]")
+    structured_llm = build_structured_llm(model=model)
     graph = build_patchwork_graph(structured_llm)
 
     initial = create_initial_state(str(target_path), source, max_retries=max_retries)
@@ -153,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         with GPUProfiler() as profiler:
-            final_state = _run_audit(args.target, source, max_retries)
+            final_state = _run_audit(args.target, source, max_retries, model=args.model)
     except Exception as exc:
         is_conn_error = False
         curr: BaseException | None = exc

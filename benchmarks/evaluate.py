@@ -38,7 +38,12 @@ from benchmarks.manifest import (
     load_manifest,
     load_oracle_test,
 )
-from patchwork.graph import build_patchwork_graph, build_structured_llm
+from patchwork.graph import (
+    DEFAULT_LLM_TIMEOUT_SEC,
+    DEFAULT_MODEL,
+    build_patchwork_graph,
+    build_structured_llm,
+)
 from patchwork.state import AgentState, CodeAuditOutput, create_initial_state
 from patchwork.telemetry.profiler import profile_call
 from patchwork.tools.sandbox import run_pytest_sandbox
@@ -86,6 +91,7 @@ class DefectResult(BaseModel):
 
 
 class EvaluationSummary(BaseModel):
+    model: str = DEFAULT_MODEL
     total_defects: int
     pass_at_1: int  # passed oracle with retry_count == 0 (empirical lower bound)
     pass_at_1_rate: float
@@ -265,6 +271,7 @@ def evaluate_all(
     structured_llm: Runnable[str, CodeAuditOutput],
     max_retries: int = DEFAULT_MAX_RETRIES,
     console: Console | None = None,
+    model_name: str = DEFAULT_MODEL,
 ) -> EvaluationSummary:
     if console is None:
         console = Console()
@@ -294,6 +301,7 @@ def evaluate_all(
     vram_values = [r.peak_vram_mb for r in results if r.peak_vram_mb is not None]
 
     return EvaluationSummary(
+        model=model_name,
         total_defects=total,
         pass_at_1=pass_at_1,
         pass_at_1_rate=pass_at_1 / total if total else 0.0,
@@ -314,6 +322,7 @@ def _print_summary(summary: EvaluationSummary, console: Console) -> None:
     table.add_column("Metric")
     table.add_column("Value")
 
+    table.add_row("Model", summary.model)
     table.add_row("Total defects", str(summary.total_defects))
     table.add_row(
         "Pass@1",
@@ -358,17 +367,29 @@ def main() -> None:
         default=RESULTS_PATH,
         help="Path where summary results JSON will be written (default: benchmarks/results.json)",
     )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_MODEL,
+        help=f"Ollama model name to use for evaluation (default: {DEFAULT_MODEL}).",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=DEFAULT_LLM_TIMEOUT_SEC,
+        help=f"Per-call LLM timeout in seconds (default: {DEFAULT_LLM_TIMEOUT_SEC}s).",
+    )
     args = parser.parse_args()
 
     console = Console()
-    console.print("[cyan]Building structured LLM client...[/cyan]")
-    structured_llm = build_structured_llm()
+    console.print(f"[cyan]Building structured LLM client ({args.model})...[/cyan]")
+    structured_llm = build_structured_llm(model=args.model, timeout=args.timeout)
 
     console.print(
-        "[cyan]Running 100-defect benchmark. This will take a while on a 3B model...[/cyan]\n"
+        f"[cyan]Running 100-defect benchmark ({args.model}). This will take a while...[/cyan]\n"
     )
     start = time.perf_counter()
-    summary = evaluate_all(structured_llm, console=console)
+    summary = evaluate_all(structured_llm, console=console, model_name=args.model)
     elapsed = time.perf_counter() - start
 
     console.print()
