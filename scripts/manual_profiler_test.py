@@ -40,7 +40,7 @@ def main() -> None:
             "(the PROCESSOR column should say 100% GPU) before trusting benchmark numbers."
         )
     else:
-        target_max = 3400  # <=3.4GB Q8_0 ceiling from project spec
+        target_max = 3000  # Target ceiling for 4-bit model on 4GB laptop GPU
         if telemetry.peak_vram_mb is not None and telemetry.peak_vram_mb > target_max:
             print(
                 f"\nNOTE: peak VRAM ({telemetry.peak_vram_mb:.0f}MB) exceeds your project's"

@@ -1,11 +1,9 @@
 """
 scripts/manual_reflection_test.py
 ====================================
-Day 2's smoke test used a one-line bug the model fixes on attempt 1 --
-that never exercises node_reflect_and_heal or route_after_execution.
-This script uses a nastier multi-symptom bug deliberately chosen to be
-harder to fix correctly in one shot, so you can watch retry_count go
-above 0 for real, not just in the mocked tests.
+Exercises node_reflect_and_heal and route_after_execution using a multi-symptom bug
+deliberately chosen to be difficult to fix in a single attempt, verifying that
+the retry loop triggers against the real local model.
 
 Usage:
     python scripts/manual_reflection_test.py

@@ -62,12 +62,14 @@ Run against `qwen2.5-coder:3b`, temperature 0.0, repeat penalty 1.05, on an RTX 
 | --- | --- |
 | Total defects | 100 |
 | Categories | 21 |
-| Pass@1 (fixed on first attempt) | 38% |
+| Pass@1 (fixed on first attempt)* | 38% |
 | Pass@overall (fixed within 3 retries) | 58% |
 | Avg duration per defect | 7.80s |
-| Avg peak VRAM | 2532 MB |
+| Avg peak VRAM (device-wide) | 2532 MB |
 
-The reflection loop took the fix rate from 38% to 58% — 20 defects that failed on the first attempt got fixed once the model saw its own test failure and tried again.
+*\*Pass@1 requires both the fix and the self-test to pass on attempt 0 without triggering reflection, acting as an empirical lower bound on first-shot accuracy.*
+
+The reflection loop took the fix rate from 38% to 58% — 20 defects that failed on the first attempt got fixed once the model saw its own test failure and tried again. Average duration per defect dropped from ~29.6s in early unconstrained prototype runs (preserved in `benchmarks/first-results.json`) down to 7.80s through strict generation token capping (`num_predict`), background thread timeouts, and targeted test prompt constraints.
 
 ### Where the model succeeds and where it doesn't
 
@@ -84,19 +86,19 @@ Six categories hit 0% across every defect and every retry: float precision compa
 | Model's own tests passed, oracle disagreed | 28 | 67% |
 | Model's own tests never passed, even after 3 retries | 14 | 33% |
 
-Every one of the 28 confirmation-bias failures exited at retry 0 or 1. Every one of the 14 exhaustion failures used the full retry budget without ever satisfying even its own tests. There's no overlap between the two groups.
+Every one of the 28 confirmation-bias failures exited at retry 0 or 1 (concentrated across 11 categories, with 22 of the 28 occurring in just 5 categories). Every one of the 14 exhaustion failures used the full retry budget without ever satisfying even its own tests. There's no overlap between the two groups.
 
-The pattern: when the model doesn't understand a bug well enough to fix it, it usually doesn't understand it well enough to write a test that would catch it either. It writes a test for the case it already handles correctly, watches that test pass, and exits believing the bug is fixed. The reflection loop never fires, because nothing told it to. This is why grading against a hidden oracle matters — grading the same run against the model's own tests would have shown a 66% pass rate instead of 58%, and every one of those extra 8 points would have been a bug the agent left in place while reporting success.
+The pattern: when the model doesn't understand a bug well enough to fix it, it usually doesn't understand it well enough to write a test that would catch it either. It writes a test for the case it already handles correctly, watches that test pass, and exits believing the bug is fixed. The reflection loop never fires, because nothing told it to. This is why grading against a hidden oracle matters — grading the same run against the model's own tests would have shown a 75% pass rate instead of 58% (47 passed both, plus 28 false accepts where the oracle disagreed), masking 28 unfixed bugs behind passing self-tests.
 
 ## Threats to validity
 
-**Construct validity.** The gap between self-test pass rate and oracle pass rate (66% vs. 58%) is direct evidence that "the agent's own tests pass" is not a reliable stand-in for "the bug is fixed." That's the reason this benchmark grades against a held-out oracle at all.
+**Construct validity.** The 17-point gap between self-test pass rate and oracle pass rate (75% vs. 58%) is direct evidence that "the agent's own tests pass" is not a reliable stand-in for "the bug is fixed." That's the reason this benchmark grades against a held-out oracle at all.
 
 **Internal validity.** Temperature is set to 0.0 for reproducibility, but llama.cpp / Ollama's execution isn't fully deterministic across runs on the same hardware — expect small variation (a few percentage points) if you rerun this yourself.
 
 **External validity.** All 100 defects are isolated, single-file, single-function or single-class bugs with no external dependencies. This deliberately avoids the complexity of multi-file repositories, import resolution, and cross-module state, which is a different and harder problem than the one this benchmark measures. Nothing here claims to predict performance on a real codebase.
 
-Category sizes aren't perfectly even (4-5 defects each), so per-category rates above should be read as directional, not precise. The defect-weighted overall rate (58%) and the unweighted average across all 21 categories (59.5%) are close enough that this imbalance doesn't meaningfully distort the headline number.
+Category sizes aren't perfectly even (4-5 defects each), so per-category rates above should be read as directional, not precise. The defect-weighted overall rate (58%) and the unweighted average across all 21 categories (58.6%) are close enough that this imbalance doesn't meaningfully distort the headline number.
 
 ## Reliability guardrails
 
@@ -127,9 +129,10 @@ benchmarks/
 ├── dataset/                # 100 buggy files + 100 hidden oracle tests
 ├── manifest.py               # dataset schema and loaders
 ├── evaluate.py                 # runs the full benchmark, grades against oracles
-└── results.json                  # latest benchmark run
+├── results.json                  # latest benchmark run (100 defects, ~7.8s/defect)
+└── first-results.json            # initial baseline run (25 defects, ~29.6s/defect)
 
-tests/                      # 180+ tests, ~91% coverage
+tests/                      # 182 tests, 93% core coverage
 ```
 
 ## Running the tests

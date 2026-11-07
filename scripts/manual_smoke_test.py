@@ -23,7 +23,7 @@ BUGGY_SOURCE = "def divide(a, b):\n    return a + b\n"
 
 def main() -> None:
     print(
-        "Building structured LLM client (qwen2.5-coder:3b, temp=0.1, num_ctx=8192)..."
+        "Building structured LLM client (qwen2.5-coder:3b, temp=0.0, num_ctx=8192)..."
     )
     structured_llm = build_structured_llm()
 

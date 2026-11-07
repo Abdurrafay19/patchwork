@@ -99,8 +99,7 @@ def append_telemetry_entry(
 
     JSON Lines, not a single JSON array, so appending never requires
     reading the whole file back into memory first -- matters once this
-    file accumulates results across many CLI runs and a full 25-defect
-    benchmark sweep.
+    file accumulates results across many CLI runs and full benchmark sweeps.
     """
     with path.open("a", encoding="utf-8") as f:
         f.write(entry.model_dump_json())
