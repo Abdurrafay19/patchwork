@@ -5,8 +5,7 @@ The no-GPU fallback path is mocked (patching pynvml.nvmlInit to raise),
 not relied on from the host's actual hardware -- a dev machine with a
 real GPU must see identical, deterministic results here as CI (which
 has no GPU). Testing against real hardware state would make these tests
-flake depending on what machine runs them; that's what
-scripts/manual_profiler_test.py is for instead.
+flake depending on what machine runs them.
 """
 
 from __future__ import annotations
