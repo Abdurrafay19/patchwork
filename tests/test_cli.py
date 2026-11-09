@@ -297,8 +297,26 @@ class TestMain:
 
         with patch(
             "patchwork.cli._run_audit",
-            side_effect=httpx.ConnectError(
-                "[WinError 10061] No connection could be made because the target machine actively refused it"
+            side_effect=httpx.ConnectError("Connection refused by server"),
+        ):
+            result = main(["audit", str(target), "--output-dir", str(tmp_path)])
+
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "Could not connect to local Ollama server" in captured.out
+
+    def test_ollama_posix_connection_refused_returns_1_with_clean_message(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        import errno
+
+        target = tmp_path / "target.py"
+        target.write_text("x = 1\n", encoding="utf-8")
+
+        with patch(
+            "patchwork.cli._run_audit",
+            side_effect=ConnectionRefusedError(
+                errno.ECONNREFUSED, "Connection refused"
             ),
         ):
             result = main(["audit", str(target), "--output-dir", str(tmp_path)])

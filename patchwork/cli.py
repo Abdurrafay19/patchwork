@@ -9,6 +9,7 @@ generated test suite, audit report, and run telemetry are persisted to disk.
 
 from __future__ import annotations
 
+import errno
 import sys
 from argparse import ArgumentParser, Namespace
 from datetime import datetime, timezone
@@ -144,6 +145,31 @@ def _write_outputs(
     return patched_path, test_path, report_path
 
 
+def _is_connection_error(exc: BaseException) -> bool:
+    curr: BaseException | None = exc
+    target_errnos = {
+        errno.ECONNREFUSED,
+        getattr(errno, "WSAECONNREFUSED", 10061),
+    }
+    while curr is not None:
+        if isinstance(
+            curr,
+            (
+                ConnectionRefusedError,
+                ConnectionError,
+                httpx.ConnectError,
+                httpx.ConnectTimeout,
+            ),
+        ):
+            return True
+        if isinstance(curr, OSError) and (
+            curr.errno in target_errnos or getattr(curr, "winerror", None) == 10061
+        ):
+            return True
+        curr = curr.__cause__ or curr.__context__
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
@@ -166,17 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         with GPUProfiler() as profiler:
             final_state = _run_audit(args.target, source, max_retries, model=args.model)
     except Exception as exc:
-        is_conn_error = False
-        curr: BaseException | None = exc
-        while curr is not None:
-            if isinstance(
-                curr, (ConnectionError, httpx.ConnectError)
-            ) or "10061" in str(curr):
-                is_conn_error = True
-                break
-            curr = curr.__cause__ or curr.__context__
-
-        if is_conn_error:
+        if _is_connection_error(exc):
             console.print(
                 f"\n[red]Error:[/red] Could not connect to local Ollama server ({exc}).\n"
                 "Please ensure Ollama is running (`ollama serve` or open the Ollama desktop app)."
