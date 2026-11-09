@@ -50,7 +50,7 @@ SYSTEM_PROMPT: Final[str] = (
 )
 
 _llm_timeout_executor: Final[ThreadPoolExecutor] = ThreadPoolExecutor(
-    max_workers=1, thread_name_prefix="patchwork-llm-call"
+    thread_name_prefix="patchwork-llm-call"
 )
 
 
