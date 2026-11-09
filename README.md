@@ -10,6 +10,9 @@ Point it at a buggy Python file:
 
 ```bash
 python -m patchwork.cli audit target.py --heal
+
+# or specify a different model:
+python -m patchwork.cli audit target.py --heal --model qwen2.5-coder:7b
 ```
 
 The agent reads the file, runs `ruff` and `ast.parse` against it, sends the code to the model with instructions to find and fix the bug, and runs the model's own generated tests against its own patch in a sandboxed subprocess. If the tests fail and `--heal` is set, the agent feeds the failure output back to the model and tries again, up to 3 times. It writes the patched file, the test suite, and a Markdown audit report to disk.
@@ -40,6 +43,7 @@ python -m venv .venv
 source .venv/bin/activate  # .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ollama pull qwen2.5-coder:3b
+ollama pull qwen2.5-coder:7b  # optional: for 7B scale test
 ```
 
 Requires Python 3.10+, [Ollama](https://ollama.com) running locally, and an NVIDIA GPU with 4GB+ VRAM. Developed and benchmarked on an RTX 3050 Laptop GPU.
@@ -50,6 +54,9 @@ Requires Python 3.10+, [Ollama](https://ollama.com) running locally, and an NVID
 
 ```bash
 python -m benchmarks.evaluate
+
+# or evaluate a custom model and output file:
+python -m benchmarks.evaluate --model qwen2.5-coder:7b --output benchmarks/results_7b.json
 ```
 
 This runs all 100 defects through the full agent graph, grades each result against its oracle, and writes `benchmarks/results.json`.
@@ -161,9 +168,11 @@ benchmarks/
 ├── evaluate.py                 # runs the full benchmark, grades against oracles
 ├── results.json                  # baseline benchmark run (100 defects, 58% pass rate)
 ├── results_v1_1.json             # improved run with attempt history (100 defects, 60% pass rate)
+├── results_7b.json               # 7B scale test run (100 defects, 76% pass rate)
 └── first-results.json            # early prototype run (25 defects, ~29.6s/defect)
 
-tests/                      # 191 tests, 93% core coverage
+scripts/                    # manual verification and smoke test scripts
+tests/                      # 197 tests, 93% core coverage
 ```
 
 ## Running the tests
