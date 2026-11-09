@@ -17,9 +17,20 @@ import threading
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Final, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Final, ParamSpec, TypeVar
 
-import pynvml
+if TYPE_CHECKING:
+    import pynvml
+
+    _HAS_PYNVML = True
+else:
+    try:
+        import pynvml
+
+        _HAS_PYNVML = True
+    except ImportError:  # pragma: no cover
+        pynvml = None
+        _HAS_PYNVML = False
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("patchwork.telemetry.profiler")
@@ -62,6 +73,10 @@ class GPUProfiler:
         self._start_time: float = 0.0
 
     def _monitor(self) -> None:
+        if not _HAS_PYNVML or pynvml is None:
+            self.error_message = "pynvml is not installed"
+            return
+
         try:
             pynvml.nvmlInit()
         except pynvml.NVMLError as exc:
