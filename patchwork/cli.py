@@ -1,12 +1,3 @@
-"""
-patchwork.cli
-==============
-Command-line entry point: python -m patchwork.cli audit target.py --heal
-
-Renders live progress to the terminal while the graph runs. The patched source,
-generated test suite, audit report, and run telemetry are persisted to disk.
-"""
-
 from __future__ import annotations
 
 import errno

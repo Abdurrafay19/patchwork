@@ -1,11 +1,3 @@
-"""
-patchwork.graph
-================
-LangGraph state machine coordinating the self-healing code audit cycle:
-static analysis, patch generation, isolated test execution, reflection,
-and report compilation.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -270,7 +262,6 @@ def node_execute_tests(state: AgentState) -> AgentState:
             "audit_trail": [*state["audit_trail"], trail_entry],
         }
 
-    # Execute tests against the patched code
     sandbox_result = run_pytest_sandbox(state["current_code"], state["current_tests"])
 
     trail_entry = f"Test execution: passed={sandbox_result.passed}, timed_out={sandbox_result.timed_out}"
@@ -303,6 +294,7 @@ def route_after_execution(state: AgentState) -> Literal["end", "reflect"]:
 def build_patchwork_graph(
     structured_llm: Runnable[str, CodeAuditOutput],
 ) -> CompiledStateGraph[Any, Any, Any, Any]:
+    """Builds and compiles the LangGraph state machine coordinating the code audit cycle."""
     workflow: StateGraph[Any, Any, Any, Any] = StateGraph(cast(Any, AgentState))
 
     workflow.add_node("static_analysis", cast(Any, node_static_analysis))

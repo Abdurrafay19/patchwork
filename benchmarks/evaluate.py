@@ -1,23 +1,3 @@
-"""
-benchmarks.evaluate
-=====================
-Runs the full agent graph against every defect in the dataset and grades
-the result against that defect's oracle test -- never against the SLM's
-own self-written test suite, since a model that writes weak tests would
-otherwise score as "fixed" even when it isn't.
-
-structured_llm is injected, same pattern as graph.py, so tests can mock
-it and never touch a real Ollama server. The real run (main()) uses the
-actual model.
-
-Streams each defect's graph run via graph.stream(stream_mode="values")
-instead of a single blocking graph.invoke() -- on a slow local 3B model,
-a 100-defect run can take tens of minutes with total silence otherwise,
-which is indistinguishable from a hang. Per-node progress (via rich) and
-a rough tokens/sec estimate give a live signal that something is still
-happening and roughly how fast.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -115,17 +95,6 @@ def _run_graph_with_progress(
     initial: AgentState,
     console: Console,
 ) -> tuple[AgentState, list[AttemptRecord]]:
-    """Streams the graph node-by-node, printing progress and a rough
-    tokens/sec estimate for generation/reflection steps.
-
-    Args:
-        graph: A compiled patchwork graph.
-        initial: The starting AgentState for this defect.
-        console: Shared rich Console to print progress lines to.
-
-    Returns:
-        The final AgentState and list of recorded attempts.
-    """
     final_state: AgentState = initial
     prev_time = time.perf_counter()
     prev_content_len = len(initial["current_code"]) + len(initial["current_tests"])

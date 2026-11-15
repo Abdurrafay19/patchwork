@@ -1,14 +1,3 @@
-"""
-patchwork.report
-==================
-Builds the final Markdown audit report from a completed AgentState.
-
-Pure function, no I/O -- node_compile_report in graph.py calls this and
-stores the result in state; writing audit_report.md to disk is the
-caller's job (cli.py, evaluate.py), matching the pure-function-plus-edge-IO
-split already used by patchwork.tools.
-"""
-
 from __future__ import annotations
 
 import difflib
@@ -52,16 +41,7 @@ def _render_test_summary(state: AgentState) -> str:
 
 
 def build_audit_report(state: AgentState) -> str:
-    """Builds the full Markdown audit report for a completed run.
-
-    Args:
-        state: The final AgentState after the graph reaches its terminal
-            edge (tests passed, or retries exhausted).
-
-    Returns:
-        A Markdown-formatted report string, ready to write to
-        `audit_report.md`.
-    """
+    """Builds the full Markdown audit report for a completed run."""
     sandbox = state["sandbox_result"]
     sections = [
         f"# Audit Report: {state['source_file_path']}",

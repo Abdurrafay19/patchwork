@@ -1,15 +1,3 @@
-"""
-Deterministic AST-based structural inspection for the Patchwork self-healing code-audit engine.
-
-This tool never shells out to a subprocess -- `ast.parse` only builds a syntax tree, it does not execute
-any code, so it's safe to run in-process directly against SLM-authored
-source. Its job is narrow: confirm the code is even syntactically valid
-Python before anything downstream (ruff, pytest) wastes a cycle on it,
-and extract a lightweight structural inventory (functions, classes,
-docstring coverage) that's cheap to hand to the SLM as context.
-
-"""
-
 from __future__ import annotations
 
 import ast
@@ -43,21 +31,7 @@ class ClassInfo(BaseModel):
 
 
 class ASTInspectionResult(BaseModel):
-    """Strictly-typed result of inspecting one source file's AST.
-
-    Attributes:
-        syntax_valid: False if `ast.parse` raised `SyntaxError`. When
-            False, `functions`/`classes` are empty and
-            `syntax_error_message`/`syntax_error_line` are populated
-            instead -- there is no partial tree to report on.
-        functions: Top-level and nested function/method definitions,
-            in the order they appear in source.
-        classes: Top-level class definitions, in the order they appear.
-        total_lines: Number of lines in the source, via `splitlines()`.
-        syntax_error_message: Human-readable parse error, truncated.
-        syntax_error_line: 1-indexed line the parser failed on, if known.
-        syntax_error_column: 1-indexed column the parser failed on.
-    """
+    """Strictly-typed result of inspecting one source file's AST."""
 
     syntax_valid: bool
     functions: list[FunctionInfo] = Field(default_factory=list)
@@ -69,15 +43,6 @@ class ASTInspectionResult(BaseModel):
 
 
 def _has_leading_docstring(body: list[ast.stmt]) -> bool:
-    """Checks whether a function/class body opens with a docstring.
-
-    Args:
-        body: The `.body` list of an `ast.FunctionDef`, `ast.AsyncFunctionDef`,
-            or `ast.ClassDef` node.
-
-    Returns:
-        True if the first statement is a bare string-literal expression.
-    """
     if not body:
         return False
     first = body[0]
@@ -91,14 +56,6 @@ def _has_leading_docstring(body: list[ast.stmt]) -> bool:
 def _extract_function_info(
     node: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> FunctionInfo:
-    """Builds a `FunctionInfo` from a function/async-function AST node.
-
-    Args:
-        node: The function definition node to summarize.
-
-    Returns:
-        A populated `FunctionInfo`.
-    """
     args = node.args
     arg_count = len(args.posonlyargs) + len(args.args) + len(args.kwonlyargs)
     return FunctionInfo(
@@ -111,15 +68,6 @@ def _extract_function_info(
 
 
 def _extract_class_info(node: ast.ClassDef) -> ClassInfo:
-    """Builds a `ClassInfo` from a class-definition AST node.
-
-    Args:
-        node: The class definition node to summarize.
-
-    Returns:
-        A populated `ClassInfo`. `method_count` only counts direct
-        children of the class body, not methods of nested classes.
-    """
     method_count = sum(
         1
         for child in node.body
@@ -134,22 +82,7 @@ def _extract_class_info(node: ast.ClassDef) -> ClassInfo:
 
 
 def inspect_source(source_code: str) -> ASTInspectionResult:
-    """Parses Python source into an AST and extracts a structural summary.
-
-    This function never raises for malformed *Python* input -- syntax
-    errors, null-byte source, and excessively deep nesting are all
-    caught and represented as data on the returned model. It only raises
-    for programming errors on the caller's side (e.g. passing a
-    non-`str`), which `mypy --strict` should catch before runtime anyway.
-
-    Args:
-        source_code: The full contents of the module to inspect.
-
-    Returns:
-        An `ASTInspectionResult` describing either the extracted
-        structure (if the source parsed successfully) or the parse
-        failure (if it did not).
-    """
+    """Parses Python source into an AST and extracts a structural summary."""
     total_lines = len(source_code.splitlines())
 
     try:

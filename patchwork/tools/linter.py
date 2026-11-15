@@ -1,9 +1,3 @@
-"""
-Deterministic static-analysis wrapper around `ruff check` for the Patchwork self-healing code-audit engine.
-it takes source code as a string, runs `ruff` against it in isolation, and returns strictly-typed, truncated diagnostics
-that are safe to inject into a constrained-context prompt.
-"""
-
 from __future__ import annotations
 
 import json
@@ -18,9 +12,6 @@ from typing import Final
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger("patchwork.tools.linter")
-
-
-# --- Constants
 
 DEFAULT_TIMEOUT_SEC: Final[int] = 10
 MAX_ISSUES_RETAINED: Final[int] = 30
@@ -57,7 +48,6 @@ def _truncate_message(message: str, max_chars: int = MAX_MESSAGE_CHARS) -> str:
 
 
 def _parse_ruff_json(raw_stdout: str) -> list[LintIssue]:
-    """Parses JSON output from `ruff check --output-format=json` into a list of LintIssues."""
     raw_entries = json.loads(raw_stdout)
     issues: list[LintIssue] = []
     for entry in raw_entries:

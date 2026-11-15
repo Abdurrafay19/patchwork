@@ -1,16 +1,3 @@
-"""
-patchwork.telemetry.logger
-=============================
-JSON structured logging configuration and telemetry persistence.
-
-Kept decoupled from patchwork.tools and patchwork.graph -- those modules
-already log via the standard `logging` module with `extra={...}` fields
-(see e.g. sandbox.py's "sandbox_run_complete" event); this module is only
-responsible for (a) formatting those log records as JSON when the
-application entrypoint opts in, and (b) appending a per-run telemetry
-summary to telemetry.json for offline benchmark analysis.
-"""
-
 from __future__ import annotations
 
 import json
@@ -31,13 +18,7 @@ _RESERVED_LOG_RECORD_ATTRS: Final[frozenset[str]] = frozenset(
 
 
 class JsonLogFormatter(logging.Formatter):
-    """Renders each log record as one JSON line.
-
-    Anything passed via `extra={...}` at the call site is merged into the
-    output verbatim -- this is what turns e.g. sandbox.py's
-    `extra={"event": "sandbox_run_complete", "passed": passed, ...}` into
-    real structured fields instead of just interpolated message text.
-    """
+    """Renders each log record as one JSON line."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, object] = {
@@ -58,12 +39,7 @@ class JsonLogFormatter(logging.Formatter):
 
 
 def configure_json_logging(level: int = logging.INFO) -> None:
-    """Configures the "patchwork" logger tree to emit JSON lines to stderr.
-
-    Idempotent -- calling this more than once (e.g. once from cli.py, once
-    from a test) does not attach duplicate handlers, which would otherwise
-    duplicate every log line.
-    """
+    """Configures the patchwork logger tree to emit JSON lines to stderr."""
     root = logging.getLogger("patchwork")
     root.setLevel(level)
 
@@ -95,12 +71,7 @@ class TelemetryLogEntry(BaseModel):
 def append_telemetry_entry(
     entry: TelemetryLogEntry, path: Path = DEFAULT_TELEMETRY_PATH
 ) -> None:
-    """Appends one telemetry entry as a JSON line to `path`.
-
-    JSON Lines, not a single JSON array, so appending never requires
-    reading the whole file back into memory first -- matters once this
-    file accumulates results across many CLI runs and full benchmark sweeps.
-    """
+    """Appends one telemetry entry as a JSON line to path."""
     with path.open("a", encoding="utf-8") as f:
         f.write(entry.model_dump_json())
         f.write("\n")
@@ -109,12 +80,7 @@ def append_telemetry_entry(
 def read_telemetry_entries(
     path: Path = DEFAULT_TELEMETRY_PATH,
 ) -> list[TelemetryLogEntry]:
-    """Reads all telemetry entries back from a JSON Lines file.
-
-    Returns an empty list if the file doesn't exist yet, rather than
-    raising -- a fresh checkout with no runs yet is a normal starting
-    state, not an error.
-    """
+    """Reads all telemetry entries back from a JSON Lines file."""
     if not path.exists():
         return []
     entries: list[TelemetryLogEntry] = []

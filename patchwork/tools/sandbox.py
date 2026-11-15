@@ -1,27 +1,3 @@
-"""
-patchwork.tools.sandbox
-========================
-Deterministic, sandboxed pytest execution for the Patchwork self-healing
-code-audit engine.
-
-This module is intentionally LLM-agnostic: it knows nothing about Ollama,
-LangGraph, or Qwen. Its only job is to take a source module and a test
-suite (both as strings), execute the tests in an isolated temporary
-directory via `pytest`, and return a strictly-typed, truncated result.
-
-Design goals (see `critical_engineering_and_execution_advice`):
-    * Every subprocess call is time-boxed. A hallucinated `while True:`
-      in generated test code must never hang the agent process.
-    * Generated code/tests are never written into the project directory.
-      Every run gets a disposable `tempfile.TemporaryDirectory()`.
-    * Tool output is truncated before it re-enters the LLM context window,
-      to protect the ~1.5 GB VRAM KV-cache budget on a 4 GB GPU.
-    * Structured logging only -- no `print()`. This module logs via the
-      standard `logging` module with structured `extra` fields; JSON
-      formatting is configured by the application entrypoint, keeping
-      telemetry concerns decoupled from this tool's core logic.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -39,8 +15,6 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("patchwork.tools.sandbox")
 
-# --- Tunables -------------------------------------------------------------
-
 DEFAULT_TIMEOUT_SEC: Final[int] = 10
 MAX_OUTPUT_CHARS: Final[int] = 1000
 MAX_OUTPUT_LINES: Final[int] = 20
@@ -51,22 +25,7 @@ _TEST_MODULE_NAME: Final[str] = "test_module_under_test"
 
 
 class SandboxExecutionResult(BaseModel):
-    """Strictly-typed result of a single sandboxed pytest run.
-
-    Attributes:
-        passed: True only if pytest exited with code 0 and did not time out.
-        returncode: Raw pytest exit code, or None if the process never
-            returned one (e.g. it timed out or failed to launch).
-        timed_out: True if the subprocess was killed for exceeding
-            `timeout_sec`.
-        stdout: Truncated, tail-anchored stdout from pytest.
-        stderr: Truncated, tail-anchored stderr from pytest.
-        duration_sec: Wall-clock time the subprocess actually ran for.
-        error_message: Populated only for infrastructure-level failures
-            (e.g. pytest executable not found), never for normal test
-            failures -- those are represented via `passed=False` plus the
-            captured stdout/stderr instead.
-    """
+    """Strictly-typed result of a single sandboxed pytest run."""
 
     passed: bool
     returncode: int | None = None
@@ -82,21 +41,6 @@ def _truncate_tail(
     max_chars: int = MAX_OUTPUT_CHARS,
     max_lines: int = MAX_OUTPUT_LINES,
 ) -> str:
-    """Truncates text to its last N lines and last N characters.
-
-    Keeps the *tail* of the output, since pytest tracebacks and assertion
-    failures are almost always at the end of stdout/stderr. This is what
-    protects the SLM's context window from a 500-line traceback blowing
-    the KV cache on constrained VRAM.
-
-    Args:
-        text: Raw text to truncate.
-        max_chars: Maximum characters to retain from the end of `text`.
-        max_lines: Maximum lines to retain from the end of `text`.
-
-    Returns:
-        The truncated text, prefixed with a marker if truncation occurred.
-    """
     if not text:
         return text
 
@@ -119,11 +63,6 @@ def _truncate_tail(
 def _sanitize_test_imports(
     test_code: str, source_module_name: str | None = None
 ) -> str:
-    """Neutralizes import lines referencing the source module name or relatives.
-
-    The sandbox dynamically mounts the source into the test namespace, so
-    self-imports in generated suites are commented out to prevent ModuleNotFoundError.
-    """
     patterns = [
         "from .",
         f"from {_SOURCE_MODULE_NAME}",
@@ -144,19 +83,6 @@ def _sanitize_test_imports(
 
 
 def _limit_subprocess_memory() -> None:
-    """`preexec_fn` target that caps the pytest subprocess's virtual
-    address space to `MAX_MEMORY_MB`.
-
-    POSIX-only, best-effort guard against generated test code that
-    allocates unbounded arrays and OOMs the host machine before the
-    `timeout_sec` wall-clock limit even has a chance to fire. This is a
-    no-op on Windows, where the `resource` module is unavailable.
-
-    Note:
-        `preexec_fn` runs in the forked child between `fork()` and
-        `exec()`; keeping it to a single `setrlimit` call (no other
-        Python machinery) avoids the well-known fork/thread hazards.
-    """
     import resource  # POSIX-only; imported lazily so Windows never touches it.
 
     limit_bytes = MAX_MEMORY_MB * 1024 * 1024
@@ -169,17 +95,6 @@ def _limit_subprocess_memory() -> None:
 
 @contextmanager
 def tempfile_dir() -> Iterator[Path]:
-    """Context manager yielding a disposable temporary directory as a
-    `pathlib.Path` instead of the raw `str` `tempfile` returns natively.
-
-    Isolated into its own function purely so `run_pytest_sandbox` reads
-    cleanly; kept in this module rather than a shared utility module for
-    now since it has exactly one caller.
-
-    Yields:
-        The temporary directory path. The directory and all its contents
-        are purged on exit, even if the caller raises.
-    """
     with tempfile.TemporaryDirectory(prefix="patchwork_sandbox_") as tmpdir:
         yield Path(tmpdir)
 

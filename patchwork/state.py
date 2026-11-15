@@ -1,5 +1,3 @@
-"""patchwork.state."""
-
 from __future__ import annotations
 
 import ast
@@ -24,7 +22,6 @@ NO_CHANGE_PHRASES: Final[tuple[str, ...]] = (
 
 
 def _extract_clean_code(value: str) -> str:
-    """Extracts Python code, handling unclosed markdown fences and escaped newlines."""
     if not isinstance(value, str):
         return value
 
@@ -54,7 +51,6 @@ def _extract_clean_code(value: str) -> str:
 
 
 def _strip_test_functions_from_patch(code: str) -> str:
-    """Removes test_* functions and their decorators that bled into the patch implementation."""
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
@@ -180,7 +176,6 @@ _TRIVIAL_TEST_PATTERN: Final[re.Pattern[str]] = re.compile(
 
 
 def looks_like_trivial_test_suite(pytest_suite: str) -> bool:
-    """Checks if the test suite contains no tests or only trivial assertions."""
     test_functions = re.findall(r"def\s+(test_\w+)\s*\(", pytest_suite)
     if not test_functions:
         return True
