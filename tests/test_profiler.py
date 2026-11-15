@@ -19,7 +19,6 @@ from patchwork.telemetry.profiler import (
     GPUProfiler,
     TelemetryResult,
     profile_call,
-    profile_vram,
 )
 
 
@@ -106,21 +105,3 @@ class TestProfileCall:
         except ValueError:
             raised = True
         assert raised  # profiling must not swallow the caller's own errors
-
-
-class TestProfileVramDecorator:
-    def test_decorated_function_returns_original_result(self) -> None:
-        @profile_vram
-        def multiply(a: int, b: int) -> int:
-            return a * b
-
-        assert multiply(4, 5) == 20
-
-    def test_decorator_preserves_function_name(self) -> None:
-        # without functools.wraps, this would be "wrapper" instead --
-        # matters for debugging/logging where you inspect __name__
-        @profile_vram
-        def my_function() -> int:
-            return 1
-
-        assert my_function.__name__ == "my_function"

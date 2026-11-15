@@ -1,23 +1,10 @@
-"""
-patchwork.telemetry.profiler
-==============================
-VRAM and wall-clock telemetry, kept fully decoupled from graph.py and
-the tools -- nothing in the agent logic needs to know this exists.
-Used by benchmarks/evaluate.py to wrap graph.invoke() calls.
-
-Must never crash when no NVIDIA GPU is present (CI runs on ubuntu-latest
-with no GPU) -- gpu_available=False + peak_vram_mb=None is the correct
-degraded result, not an exception.
-"""
-
 from __future__ import annotations
 
 import logging
 import threading
 import time
 from collections.abc import Callable
-from functools import wraps
-from typing import TYPE_CHECKING, Final, ParamSpec, TypeVar
+from typing import TYPE_CHECKING, Final, TypeVar
 
 if TYPE_CHECKING:
     import pynvml
@@ -38,7 +25,6 @@ logger = logging.getLogger("patchwork.telemetry.profiler")
 DEFAULT_POLL_INTERVAL_SEC: Final[float] = 0.05
 DEFAULT_DEVICE_INDEX: Final[int] = 0
 
-P = ParamSpec("P")
 T = TypeVar("T")
 
 
@@ -50,11 +36,7 @@ class TelemetryResult(BaseModel):
 
 
 class GPUProfiler:
-    """Context manager. Polls VRAM usage on a background thread while the
-    `with` block runs, tracks the peak. Falls back cleanly to
-    gpu_available=False if no NVIDIA GPU/driver is present -- this is
-    the expected path in CI, not an error condition.
-    """
+    """Context manager that tracks peak GPU VRAM usage during execution."""
 
     def __init__(
         self,
@@ -140,30 +122,3 @@ def profile_call(
     with GPUProfiler() as profiler:
         result = func(*args, **kwargs)
     return result, profiler.result()
-
-
-def profile_vram(func: Callable[P, T]) -> Callable[P, T]:
-    """Transparent decorator: wraps func in a GPUProfiler, logs the
-    telemetry, and returns func's original result unchanged. For call
-    sites that just want VRAM logging without touching their return
-    signature (business logic stays untouched, per the isolation rule).
-    """
-
-    @wraps(func)
-    def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        with GPUProfiler() as profiler:
-            result = func(*args, **kwargs)
-        telemetry = profiler.result()
-        logger.info(
-            "profiled_call",
-            extra={
-                "event": "profiled_call",
-                "function": func.__name__,
-                "duration_sec": round(telemetry.duration_sec, 3),
-                "peak_vram_mb": telemetry.peak_vram_mb,
-                "gpu_available": telemetry.gpu_available,
-            },
-        )
-        return result
-
-    return wrapper
