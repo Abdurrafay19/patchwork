@@ -171,7 +171,7 @@ benchmarks/
 ├── results_7b.json               # 7B scale test run (100 defects, 76% pass rate)
 └── first-results.json            # early prototype run (25 defects, ~29.6s/defect)
 
-tests/                      # 197 tests, 93% core coverage
+tests/                      # 196 tests, 93% core coverage
 ```
 
 ## Running the tests
